@@ -1,0 +1,8 @@
+packages:
+    ./.
+
+source-repository-package
+    type: git
+    location: https://github.com/hamishmack/miso.git
+    tag: 321ca67c0d52d12167da8e172e98eca05b95baa5
+    --sha256: 07bh5sddpaimarf78dbzasy3k9m6sd50h0925lai00mla26rjzvg
