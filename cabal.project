@@ -1,8 +1,33 @@
+index-state: 2024-04-29T00:00:00Z
+
 packages:
     ./.
 
 source-repository-package
     type: git
-    location: https://github.com/hamishmack/miso.git
-    tag: 321ca67c0d52d12167da8e172e98eca05b95baa5
-    --sha256: 07bh5sddpaimarf78dbzasy3k9m6sd50h0925lai00mla26rjzvg
+    location: https://github.com/sambnt/miso.git
+    tag: e4b5016f0f18c8faadf7653a1e1a66c497ac06c8
+    --sha256: 1dzhxkwrcp3wpxi0df9dj21l97md6hn4iibd4w5d2v5bimlkx7fa
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/servant-jsaddle.git
+    tag: 222fa0d48fd28e95381701dc926b50e1dfc55da2
+    --sha256: 1az1h3ng82qagr0g6zfjpnfxsa89lik95ybsz2zh00dzzcyi0qcq
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/ghcjs-base.git
+    tag: 930050a115bc2b78394f705df060e1b79004bb71
+    --sha256: 1cwfv9n01q0xf688vqqpadvncbrv8chk5yxvh1w1qxlaiwcj9s2z
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/ghcjs-dom.git
+    tag: 61f5c17f4009e553cdc190aa3ba007b9b2fc5ad0
+    --sha256: 1ys0pcqhar24bdl7n3s2ip084n0mvbcybqql4bm4xsx13g46apb2
+    subdir:
+      ghcjs-dom
+      ghcjs-dom-jsaddle
+      ghcjs-dom-javascript
+      ghcjs-dom-jsffi
