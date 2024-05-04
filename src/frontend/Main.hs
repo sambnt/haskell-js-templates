@@ -9,7 +9,6 @@ import Miso.String
 
 import Control.Monad.IO.Class
 import Servant.Client.JSaddle
--- import Language.Javascript.JSaddle.Monad (liftJSM)
 import           JavaScript.Web.XMLHttpRequest
 
 import Common
@@ -49,7 +48,6 @@ main = do
         , baseUrlPath = ""
         }
 
-  -- initialCount <- getCount
   (Right initialCount) <- flip runClientM clientEnv $ getCount API.client
 
   runApp $ do
@@ -83,20 +81,4 @@ viewModel x = div_ [] [
    button_ [ onClick AddOne ] [ text "+" ]
  , text (ms x)
  , button_ [ onClick SubtractOne ] [ text "-" ]
- , rawHtml "<div><p>hey expandable!</div></p>"
  ]
-
--- getCount :: IO Int
--- getCount = do
---   Just resp <- contents <$> xhrByteString req
---   case Aeson.eitherDecodeStrict resp :: Either String Int of
---     Left s -> error s
---     Right j -> pure j
---   where
---     req = Request { reqMethod = GET
---                   , reqURI = pack "http://localhost:8081/counter"
---                   , reqLogin = Nothing
---                   , reqHeaders = []
---                   , reqWithCredentials = False
---                   , reqData = NoData
---                   }

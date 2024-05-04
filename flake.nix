@@ -7,9 +7,9 @@
     let
       supportedSystems = [
         "x86_64-linux"
-        # "x86_64-darwin"
-        # "aarch64-linux"
-        # "aarch64-darwin"
+        "x86_64-darwin"
+        "aarch64-linux"
+        "aarch64-darwin"
       ];
     in
       flake-utils.lib.eachSystem supportedSystems (system:
@@ -19,8 +19,8 @@
             hixProject =
               final.haskell-nix.hix.project {
                 src = ./.;
-                # uncomment with your current system for `nix flake show` to work:
-                #evalSystem = "x86_64-linux";
+                # uncomment with your current system for `nix flake show --allow-import-from-derivation` to work:
+                evalSystem = "x86_64-linux";
               };
           })
         ];
@@ -28,6 +28,12 @@
         flake = pkgs.hixProject.flake {};
       in flake // {
         legacyPackages = pkgs;
+        hello-frontend-js = flake.packages."javascript-unknown-ghcjs:hello-spa:exe:hello-frontend".overrideDerivation (drv: {
+          postInstall = ''
+            cp dist/build/${drv.identifier.component-name}/${drv.exeName}.jsexe/all.js $out/bin/
+            cp dist/build/${drv.identifier.component-name}/${drv.exeName}.jsexe/index.html $out/bin/
+          '';
+        });
       });
 
   # --- Flake Local Nix Configuration ----------------------------
