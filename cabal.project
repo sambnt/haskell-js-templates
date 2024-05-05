@@ -12,8 +12,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/sambnt/servant-jsaddle.git
-    tag: 222fa0d48fd28e95381701dc926b50e1dfc55da2
-    --sha256: 1az1h3ng82qagr0g6zfjpnfxsa89lik95ybsz2zh00dzzcyi0qcq
+    tag: 31bf67d913257c42924a4c9fdc6e02bd36cb0489
+    --sha256: 0607avxc2rshq5zpc0qsp9fz6pfwkm2ka9qgykjjkhdx870d7jxc
 
 source-repository-package
     type: git

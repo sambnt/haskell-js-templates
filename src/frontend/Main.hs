@@ -9,7 +9,6 @@ import Miso.String
 
 import Control.Monad.IO.Class
 import Servant.Client.JSaddle
-import           JavaScript.Web.XMLHttpRequest
 
 import Common
 import qualified Common as API (client)
