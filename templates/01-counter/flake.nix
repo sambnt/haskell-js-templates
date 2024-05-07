@@ -26,14 +26,17 @@
         ];
         pkgs = import nixpkgs { inherit system overlays; inherit (haskellNix) config; };
         flake = pkgs.hixProject.flake {};
-      in flake // {
+      in nixpkgs.lib.recursiveUpdate flake {
         legacyPackages = pkgs;
-        hello-frontend-js = flake.packages."javascript-unknown-ghcjs:hello-spa:exe:hello-frontend".overrideDerivation (drv: {
-          postInstall = ''
-            cp dist/build/${drv.identifier.component-name}/${drv.exeName}.jsexe/all.js $out/bin/
-            cp dist/build/${drv.identifier.component-name}/${drv.exeName}.jsexe/index.html $out/bin/
-          '';
-        });
+        packages = {
+          hello-frontend-js = flake.packages."javascript-unknown-ghcjs:hello-spa:exe:hello-frontend".overrideDerivation (drv: {
+            # The default builder doesn't export the generated html/javascript
+            postInstall = ''
+              cp dist/build/${drv.identifier.component-name}/${drv.exeName}.jsexe/all.js $out/bin/
+              cp dist/build/${drv.identifier.component-name}/${drv.exeName}.jsexe/index.html $out/bin/
+            '';
+          });
+        };
       });
 
   # --- Flake Local Nix Configuration ----------------------------
