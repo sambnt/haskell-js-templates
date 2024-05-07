@@ -23,11 +23,8 @@ source-repository-package
 
 source-repository-package
     type: git
-    location: https://github.com/sambnt/ghcjs-dom.git
-    tag: 61f5c17f4009e553cdc190aa3ba007b9b2fc5ad0
-    --sha256: 1ys0pcqhar24bdl7n3s2ip084n0mvbcybqql4bm4xsx13g46apb2
+    location: https://github.com/ghcjs/ghcjs-dom.git
+    tag: 7cdeedd873f76969f3144b7052c6f594d8b37bf8
+    --sha256: 130cz1i77mjvicczn5yhci4b14z9gxk5xxi1b4ych5x0k3qvnnjb
     subdir:
       ghcjs-dom
-      ghcjs-dom-jsaddle
-      ghcjs-dom-javascript
-      ghcjs-dom-jsffi
