@@ -1,11 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE CPP #-}
 
 module Main where
 
 import Miso
 import Miso.String
+import qualified Miso
+import qualified Data.ByteString.Char8 as ByteString
+import Servant.Client.Core
+import Network.HTTP.Types (hAuthorization)
+import qualified Debug.Trace as Debug
 
 import Control.Monad.IO.Class
 import Servant.Client.JSaddle
@@ -47,13 +53,13 @@ main = do
         , baseUrlPath = ""
         }
 
-  (Right initialCount) <- flip runClientM clientEnv $ getCount API.client
+  (Right initialCount) <- flip runClientM clientEnv $ getCounter API.client
 
   runApp $ do
     let
       model = initialCount
       update = updateModel clientEnv -- update function
-    miso $ \_ -> App {..}
+    miso $ \_ -> Miso.App {..}
   where
     initialAction = SayHelloWorld  -- initial action to be executed on application load
     view   = viewModel             -- view function
@@ -65,14 +71,25 @@ main = do
 -- | Updates model, optionally introduces side effects
 updateModel :: ClientEnv -> Action -> Model -> Effect Action Model
 updateModel clientEnv AddOne m = (m + 1) <# do
-  flip runClientM clientEnv $ setCount API.client (m + 1)
+  flip runClientM clientEnv $ setCounter securedClient $ (m + 1)
   pure NoOp
 updateModel clientEnv SubtractOne m = (m - 1) <# do
-  flip runClientM clientEnv $ setCount API.client (m - 1)
+  flip runClientM clientEnv $ setCounter securedClient $ (m - 1)
   pure NoOp
 updateModel _ NoOp m = noEff m
 updateModel _ SayHelloWorld m = m <# do
   liftIO (putStrLn "Hello World") >> pure NoOp
+
+type instance AuthClientData AuthAccess = ByteString.ByteString
+
+addAuth :: ByteString.ByteString -> AuthenticatedRequest AuthAccess
+addAuth = flip mkAuthenticatedRequest (\v -> addHeader hAuthorization ("Bearer " <> ByteString.unpack v))
+
+securedClient :: SecuredApi (AsClientT ClientM)
+securedClient =
+  -- Hardcoded auth header, we'd probably want to get this from a cookie.
+  secured API.client
+    (addAuth "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJlbWFpbCI6ImZvb0BiYXIuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWV9.pV7R4m7Jo0hvWKVRJsTYrggTuYNZ1H0HP6kTpwagzEE")
 
 -- | Constructs a virtual DOM from a model
 viewModel :: Model -> View Action

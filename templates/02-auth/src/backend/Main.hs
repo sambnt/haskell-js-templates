@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 import Data.Text
 import Servant.API
@@ -17,21 +19,45 @@ import Data.Aeson (FromJSON)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.UTF8 as ByteString
 import qualified Data.ByteString.Lazy as ByteStringLazy
+import qualified Data.ByteString.Base64 as ByteStringBase64
+import qualified Data.Set as Set
 import Network.Wai (Request, requestHeaders)
 import Servant.Server.Experimental.Auth (AuthServerData, AuthHandler(AuthHandler))
+import Servant.Server.Generic (AsServerT)
 import Control.Monad (guard)
 import Control.Arrow ((>>>), second)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Catch (MonadThrow, try)
+import Control.Monad.Except (ExceptT(ExceptT))
+import Control.Exception (throw)
+import Control.Monad.Identity (runIdentityT)
+import Lens.Micro ((.~), (%~))
+import Data.Function ((&))
 
 import Common
 
--- server :: TVar Int -> Server CounterAPI
--- server counter = setCountHandler counter :<|> getCountHandler counter
+appToHandler :: App a -> Handler a
+appToHandler (App app) = (Handler . ExceptT . try . runIdentityT) app
 
--- counterAPI :: Proxy CounterAPI
--- counterAPI = Proxy
+type instance AuthServerData AuthAccess = Maybe AuthUser
 
--- app :: TVar Int -> Application
--- app counter = serve counterAPI (server counter)
+getCounterHandler :: (MonadThrow m, MonadIO m) => Database -> m Int
+getCounterHandler = liftIO . STM.readTVarIO
+
+setCounterHandler :: (MonadIO m) => Database -> AuthUser -> Int -> m ()
+setCounterHandler db _ = liftIO . STM.atomically . STM.writeTVar db
+
+api :: Database -> Api (AsServerT App)
+api db = Api { getCounter = getCounterHandler db
+             , secured = securedHandlers db
+             }
+
+securedHandlers :: Database -> Maybe AuthUser -> SecuredApi (AsServerT App)
+securedHandlers db (Just authUser) =
+  SecuredApi { setCounter = setCounterHandler db authUser
+             }
+securedHandlers _ _ =
+  throw err401
 
 newtype AccessToken = AccessToken ByteString
 
@@ -52,13 +78,20 @@ getToken req = do
   where
     split = ByteString.break (== ' ') >>> second (ByteString.drop 1)
 
+-- | A simple, unsafe verification scheme where we succeed if we are able to
+-- decode an "AuthUser" from the JWT payload.
 verifyToken :: AccessToken -> IO (Maybe AuthUser)
 verifyToken (AccessToken token) = do
-  -- body <- HTTP.responseBody <$> mkRequest (getUserInfo uri token)
-  -- case Aeson.eitherDecode (ByteStringLazy.fromStrict token) of
-  --   Left err -> error err
-  --   Right r  -> pure r
-  pure $ Just AuthUser
+  -- WARNING: None of this is safe. Use "verifyJWS" from the jose package
+  -- in production.
+  let
+    split = ByteString.break (== '.') >>> second (ByteString.drop 1)
+    (hdr, (payload, sig)) =
+      split >>> second split $ token
+
+  case Aeson.eitherDecodeStrict $ ByteStringBase64.decodeLenient payload of
+    Left err -> error $ err
+    Right r  -> pure $ Just r
 
 main :: IO ()
 main = do

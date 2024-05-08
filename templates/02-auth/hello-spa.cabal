@@ -41,7 +41,6 @@ library
     , servant-client-core
     , text
     , network-uri
-    , servant-server
     , mtl
     , exceptions
     , stm
@@ -65,9 +64,14 @@ executable hello-backend
     , warp
     , text
     , stm
+    , mtl
     , hello-spa
+    , containers
+    , microlens
     , bytestring
+    , base64-bytestring
     , utf8-string
+    , exceptions
 
 executable hello-frontend
   main-is:
@@ -90,6 +94,9 @@ executable hello-frontend
       , containers
       , miso
       , transformers
+      , bytestring
+      , servant-client-core
+      , http-types
       , hello-spa
       , servant-jsaddle
       , ghcjs-base
