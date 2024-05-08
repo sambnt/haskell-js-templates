@@ -1,0 +1,30 @@
+index-state: 2024-04-29T00:00:00Z
+
+packages:
+    ./.
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/miso.git
+    tag: e4b5016f0f18c8faadf7653a1e1a66c497ac06c8
+    --sha256: 1dzhxkwrcp3wpxi0df9dj21l97md6hn4iibd4w5d2v5bimlkx7fa
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/servant-jsaddle.git
+    tag: 31bf67d913257c42924a4c9fdc6e02bd36cb0489
+    --sha256: 0607avxc2rshq5zpc0qsp9fz6pfwkm2ka9qgykjjkhdx870d7jxc
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/ghcjs-base.git
+    tag: 930050a115bc2b78394f705df060e1b79004bb71
+    --sha256: 1cwfv9n01q0xf688vqqpadvncbrv8chk5yxvh1w1qxlaiwcj9s2z
+
+source-repository-package
+    type: git
+    location: https://github.com/ghcjs/ghcjs-dom.git
+    tag: 7cdeedd873f76969f3144b7052c6f594d8b37bf8
+    --sha256: 130cz1i77mjvicczn5yhci4b14z9gxk5xxi1b4ych5x0k3qvnnjb
+    subdir:
+      ghcjs-dom
