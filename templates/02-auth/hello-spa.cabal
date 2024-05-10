@@ -1,0 +1,115 @@
+cabal-version:      3.0
+name:               hello-spa
+version:            0.0.0.1
+license:            MIT
+license-file:       LICENSE
+copyright:          (c) Samuel Evans-Powell
+author:             Samuel Evans-Powell
+maintainer:         Samuel Evans-Powell <sam@sambnt.io>
+bug-reports:        mailto:sam@sambnt.io
+homepage:           https://www.github.com/sambnt/haskell-spa
+synopsis:           An example Haskell front-end/back-end package
+build-type:         Simple
+
+Description:
+  This is an example application containing both frontend code (using Miso and
+  the new GHC Javascript backend) and backend code written in Haskell. This
+  package is meant to provide a good starting point for writing Haskell web
+  applications. Please submit any suggestions and improvements.
+
+flag jsaddle
+  manual: True
+  default:
+    False
+  description:
+    Compile with JSaddle
+
+flag ios
+  manual: True
+  default:
+    False
+  description:
+    Cross compile to iOS
+
+library
+  hs-source-dirs:
+    src/common
+  build-depends:
+      base < 5
+    , aeson
+    , servant
+    , servant-client-core
+    , text
+    , network-uri
+    , mtl
+    , exceptions
+    , stm
+  exposed-modules:
+    Common
+
+executable hello-backend
+  main-is:
+    Main.hs
+  if impl(ghcjs) || arch(javascript) || flag(jsaddle)
+    buildable: False
+  hs-source-dirs:
+    src/backend
+  build-depends:
+      base < 5
+    , aeson
+    , servant
+    , servant-server
+    , wai
+    , wai-cors
+    , warp
+    , text
+    , stm
+    , mtl
+    , hello-spa
+    , containers
+    , microlens
+    , bytestring
+    , base64-bytestring
+    , utf8-string
+    , exceptions
+
+executable hello-frontend
+  main-is:
+    Main.hs
+  if !impl(ghcjs) && !arch(javascript) && !flag(jsaddle)
+    buildable: False
+  else
+    if flag(jsaddle)
+      build-depends:
+        jsaddle
+    ghcjs-options:
+      -dedupe
+    cpp-options:
+      -DGHCJS_BROWSER
+    hs-source-dirs:
+      src/frontend
+    build-depends:
+        base < 5
+      , aeson
+      , containers
+      , miso
+      , transformers
+      , bytestring
+      , servant-client-core
+      , http-types
+      , hello-spa
+      , servant-jsaddle
+      , ghcjs-base
+    default-language:
+      Haskell2010
+    if flag(ios)
+      cpp-options:
+        -DIOS
+      ghc-options:
+        -threaded
+      build-depends:
+        jsaddle-wkwebview
+    else
+      build-depends:
+        jsaddle-warp
+
