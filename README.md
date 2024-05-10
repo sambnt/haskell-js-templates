@@ -6,6 +6,7 @@ A collection of example applications containing both frontend code (using Miso a
  nix flake init --template "github:sambnt/haskell-js-templates"
  OR
  nix flake init --template "github:sambnt/haskell-js-templates"#counter
+ nix flake init --template "github:sambnt/haskell-js-templates"#auth-simple
  OR
  clone this repository and copy out a directory under templates/*
 ```
