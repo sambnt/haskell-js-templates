@@ -1,0 +1,71 @@
+index-state: 2024-04-29T00:00:00Z
+with-compiler: ghc-9.8.2
+
+packages:
+    ./.
+
+allow-newer:
+   *:network
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/miso.git
+    tag: e4b5016f0f18c8faadf7653a1e1a66c497ac06c8
+    --sha256: 1dzhxkwrcp3wpxi0df9dj21l97md6hn4iibd4w5d2v5bimlkx7fa
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/servant-jsaddle.git
+    tag: 31bf67d913257c42924a4c9fdc6e02bd36cb0489
+    --sha256: 0607avxc2rshq5zpc0qsp9fz6pfwkm2ka9qgykjjkhdx870d7jxc
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/ghcjs-base.git
+    tag: 930050a115bc2b78394f705df060e1b79004bb71
+    --sha256: 1cwfv9n01q0xf688vqqpadvncbrv8chk5yxvh1w1qxlaiwcj9s2z
+
+source-repository-package
+    type: git
+    location: https://github.com/ghcjs/ghcjs-dom.git
+    tag: d01210f68c46fe336f0fe74ad8b6dd9b5387e155
+    --sha256: 02x0jdx3siq10g2wcy8mbk96f1y19pwzy46migbmbvhlqx3rvknl
+    subdir:
+      ghcjs-dom
+      ghcjs-dom-javascript
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/foundation.git
+    tag: 0c6c36842ca9178e5c6eb0d020de97cf61dfff04
+    --sha256: 1mqrphj9yrrrkn6nwl6i7s7zrwpjs3l19qsal56rpbv66xzvm6r5
+    subdir:
+      basement
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/network.git
+    tag: 0aa1d511bf034c1c33e0363c39779b2ce62dac50
+    --sha256: 0pivj93s1q9yrbl2gv9cdrn2rqvgd5j8krvaq00y5dmrpp3flm3g
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/cborg.git
+    tag: fb2a294cc5a6363755abea89f896b381911f9684
+    --sha256: 1nqi3xinbd6fc2jcxdjdizbsr6ygfnzdlac7mmdmaq8cg8dx6n75
+    subdir:
+      cborg
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/hs-memory.git
+    tag: fc1bd20b1a463c977943c1fe694374f39ed34923
+    --sha256: 0f1hqwas1nmdy7v8lnv4d1lp7kq22fx79w216da49f58dayxa0dp
+
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/hoauth2.git
+    tag: a49c8a99489da5d0ac556536693d611f08c4a6b5
+    --sha256: 1i92n5yyda2nyx9ap45izxs88ykx955jps1yc2np7g1nmdnk82i5
+    subdir:
+      hoauth2

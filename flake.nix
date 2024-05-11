@@ -13,6 +13,11 @@
         path = ./templates/02-auth;
         description = "Simple auth example using the new GHC Javascript backend.";
       };
+
+      auth-oauth = {
+        path = ./templates/03-auth-login;
+        description = "Auth example with login using the new GHC Javascript backend.";
+      };
     };
 
     defaultTemplate = self.templates.counter;
