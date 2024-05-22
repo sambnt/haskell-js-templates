@@ -18,18 +18,7 @@
       packages.network.components.library.preConfigure = ''
         ${pkgs.pkgsBuildHost.autoconf}/bin/autoreconf -i
       '';
-
-      # packages.hoauth2.components.library.depends = [
-      # ];
-      packages.hoauth2.components.library.build-tools = [
-        # config.packages.ghci
-        pkgs.pkgsBuildHost.nodejs
-        # config.hsPkgs.ghci
-        # config.bootPkgs.ghci
-        # config.ghc.package
-        # pkgs.pkgsBuildHost.ghcid
-        # pkgs.buildPackages.haskell-nix.haskellPackages.ghci
-      ];
+      packages.entropy.package.buildType = pkgs.lib.mkForce "Simple";
     })
   ];
 

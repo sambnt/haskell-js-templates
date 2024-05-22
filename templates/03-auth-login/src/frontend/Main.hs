@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE CPP #-}
 
 module Main where
@@ -19,6 +20,29 @@ import Servant.Client.JSaddle
 import Common
 import qualified Common as API (client)
 import qualified Data.Aeson as Aeson
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+
+import qualified Data.Set as Set
+import qualified Network.OAuth2.Experiment as OAuth
+import qualified Network.OAuth2.Experiment.Pkce as OAuth
+import qualified URI.ByteString as URI
+
+import URI.ByteString (parseURI, laxURIParserOptions, URIRef, Absolute)
+
+import qualified GHCJS.DOM.SubtleCrypto as SubtleCrypto
+import qualified GHCJS.DOM.Crypto as Crypto
+import qualified GHCJS.DOM.GlobalCrypto as GlobalCrypto
+import GHCJS.DOM (globalThisUnchecked)
+import GHCJS.DOM.Types (fromJSValUnchecked, toJSVal)
+
+import qualified GHCJS.Buffer as Buffer
+import qualified GHCJS.Buffer as Buffer
+import qualified GHCJS.DOM.Types as DOM
+import qualified GHCJS.Marshal.Pure as JS
+import JavaScript.TypedArray.ArrayBuffer (ArrayBuffer, thaw, freeze)
+
+import qualified Data.ByteString.Base16 as Base16
 
 #ifdef IOS
 import Language.Javascript.JSaddle.WKWebView as JSaddle
@@ -43,6 +67,8 @@ data Action
   | SayHelloWorld
   deriving (Show, Eq)
 
+data Cognito = Cognito deriving (Eq, Show)
+
 -- | Entry point for a miso application
 main :: IO ()
 main = do
@@ -54,6 +80,46 @@ main = do
         }
 
   (Right initialCount) <- flip runClientM clientEnv $ getCounter API.client
+
+  let
+    oauthApp :: OAuth.AuthorizationCodeApplication
+    oauthApp =
+      OAuth.AuthorizationCodeApplication { OAuth.acName = "bnt-test"
+                                         , OAuth.acClientId = "4bbo68nrfgf1vif5jl0gt4hk71"
+                                         , OAuth.acClientSecret = ""
+                                         , OAuth.acScope = mempty -- Set.fromList ["openid", "profile", "email"]
+                                         , OAuth.acRedirectUri = parseURI' "http://localhost:3000/dashboard"
+                                         , OAuth.acAuthorizeState = "changeMe" --undefined
+                                         , OAuth.acAuthorizeRequestExtraParams = mempty
+                                         , OAuth.acTokenRequestAuthenticationMethod = OAuth.ClientSecretBasic
+                                         }
+    cognitoIdp :: OAuth.Idp Cognito
+    cognitoIdp = OAuth.Idp { OAuth.idpUserInfoEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/userInfo"
+                           , OAuth.idpAuthorizeEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/authorize"
+                           , OAuth.idpTokenEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token"
+                           , OAuth.idpDeviceAuthorizationEndpoint = Nothing
+                           }
+
+    fooIdpApp :: OAuth.IdpApplication Cognito OAuth.AuthorizationCodeApplication
+    fooIdpApp = OAuth.IdpApplication { OAuth.idp = cognitoIdp
+                                     , OAuth.application = oauthApp
+                                     }
+
+  (authorizeReq, (OAuth.CodeVerifier codeVerifier)) <- OAuth.mkPkceAuthorizeRequest fooIdpApp
+
+  this   <- globalThisUnchecked
+  crypto <- GlobalCrypto.getCrypto this
+  subtle <- Crypto.getSubtle crypto
+  let (buf, off, len) = Buffer.fromByteString $ T.encodeUtf8 codeVerifier
+  codeVerifier' <- thaw $ js_slice_imm off (off + len) $ Buffer.getArrayBuffer buf
+
+  hash <- SubtleCrypto.digest subtle ("SHA-256" :: T.Text) (DOM.ArrayBuffer $ JS.pToJSVal codeVerifier')
+  x <- (T.decodeUtf8 . Base16.encode . Buffer.toByteString 0 Nothing . Buffer.createFromArrayBuffer) <$> freeze (JS.pFromJSVal hash)
+  -- x <- (T.decodeUtf8 . Buffer.toByteString 0 (Just len) . Buffer.createFromArrayBuffer) <$> freeze codeVerifier'
+
+  error $ (show $ URI.serializeURIRef' authorizeReq) <> "|" <> T.unpack codeVerifier <> "|" <> T.unpack x
+  -- print "hello world"
+  -- putStrLn "Hello World2"
 
   runApp $ do
     let
@@ -67,6 +133,12 @@ main = do
     subs   = []                    -- empty subscription list
     mountPoint = Nothing           -- mount point for application (Nothing defaults to 'body')
     logLevel = Off                 -- Used to copy DOM into VDOM, applies only to `miso` function
+
+foreign import javascript unsafe
+  "((x,y,z) => { return z.slice(x,y); })" js_slice_imm :: Int -> Int -> ArrayBuffer -> ArrayBuffer
+
+parseURI' :: ByteString.ByteString -> URIRef Absolute
+parseURI' = either (\err -> error $ show err) id . parseURI laxURIParserOptions
 
 -- | Updates model, optionally introduces side effects
 updateModel :: ClientEnv -> Action -> Model -> Effect Action Model

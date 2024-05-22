@@ -37,8 +37,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/sambnt/foundation.git
-    tag: 0c6c36842ca9178e5c6eb0d020de97cf61dfff04
-    --sha256: 1mqrphj9yrrrkn6nwl6i7s7zrwpjs3l19qsal56rpbv66xzvm6r5
+    tag: 405ee23647f4e79fd55e54b9801e111f279d6d30
+    --sha256: 0w4ci6f2yxlr5v8cj5hjkwkdhjaql2ymy84xaqbsf080f50akcn4
     subdir:
       basement
 
@@ -51,8 +51,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/sambnt/cborg.git
-    tag: fb2a294cc5a6363755abea89f896b381911f9684
-    --sha256: 1nqi3xinbd6fc2jcxdjdizbsr6ygfnzdlac7mmdmaq8cg8dx6n75
+    tag: 8365ac24a5e5e8693b3631ccca7bb4d618bc9198
+    --sha256: 0yjq1af4gzcbg70k7x2077rqfk75kjlpbbyb2y62v786il669cvs
     subdir:
       cborg
 
@@ -65,7 +65,15 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/sambnt/hoauth2.git
-    tag: a49c8a99489da5d0ac556536693d611f08c4a6b5
-    --sha256: 1i92n5yyda2nyx9ap45izxs88ykx955jps1yc2np7g1nmdnk82i5
+    tag: 1ab16289e41044638b4beb0bbaed0d85399455fa
+    --sha256: 0l4crn4yv50ibpz8k16vbv3qgfiayqxj8f0vwzk4q4ai3afj7w8n
     subdir:
       hoauth2
+
+-- source-repository-package
+--     type: git
+--     location: https://github.com/sambnt/hoauth2.git
+--     tag: 563dae1701594a35aae1e331604d9c1858335111
+--     --sha256: 0dzzy1jrr00593sid6iihfjq9w896563gygw7bwcyykkk3rkpx31
+--     subdir:
+--       hoauth2

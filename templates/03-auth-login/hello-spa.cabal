@@ -44,7 +44,6 @@ library
     , mtl
     , exceptions
     , stm
-    , hoauth2
   exposed-modules:
     Common
 
@@ -101,6 +100,12 @@ executable hello-frontend
       , hello-spa
       , servant-jsaddle
       , ghcjs-base
+      , base64-bytestring
+      , base16-bytestring
+      , text
+      , hoauth2
+      , uri-bytestring
+      , ghcjs-dom-javascript
     default-language:
       Haskell2010
     if flag(ios)

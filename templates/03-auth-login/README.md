@@ -23,6 +23,8 @@ curl http://localhost:8081/counter
 nix build .#hello-frontend-js
 # Serve frontend
 python3 -m http.server --dir ./result/bin
+
+javascript-unknown-ghcjs-cabal build exe:hello-frontend
 ```
 
 ## Notes
