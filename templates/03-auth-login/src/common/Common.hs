@@ -11,6 +11,8 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE JavaScriptFFI #-}
 
 module Common where
 
@@ -31,6 +33,8 @@ import Control.Concurrent.STM (TVar)
 import Control.Monad.Catch (MonadThrow, try)
 import qualified Control.Concurrent.STM as STM
 import Servant.Client.Generic (AsClientT, genericClient)
+
+import qualified GHCJS.DOM.Types as DOM
 
 type Database = TVar Int
 
@@ -79,6 +83,28 @@ data SecuredApi mode = SecuredApi
 
 client :: RunClient m => Api (AsClientT m)
 client = genericClient
+
+-- Interruptible indicates an asynchronous import.
+foreign import javascript interruptible "((x, $c) => { return digestMessage(x).then(function(v) { $c(null, v); }, function(e) { $c(e, null); }); })"
+  js_digestMessage :: DOM.JSString -> IO (DOM.JSVal, DOM.JSString)
+
+digestMessage :: DOM.JSString -> IO DOM.JSString
+digestMessage msg = DOM.checkPromiseResult =<< js_digestMessage msg
+
+-- foreign import javascript interruptible
+--         "(($1, $c) => { return $1[\"arrayBuffer\"]().then(function(s) { $c(null, s);}, function(e) { $c(e, null);}); })"
+--         js_arrayBuffer :: Body -> IO (JSVal, ArrayBuffer)
+
+-- | <https://developer.mozilla.org/en-US/docs/Web/API/Body.arrayBuffer Mozilla Body.arrayBuffer documentation>
+-- arrayBuffer :: (MonadIO m, IsBody self) => self -> m ArrayBuffer
+-- arrayBuffer self
+--   = liftIO ((js_arrayBuffer (toBody self)) >>= checkPromiseResult)
+
+-- foreign import javascript unsafe "((x) => { return window.crypto.subtle.digest('SHA-256', x)};)"
+--   js_digestMessage :: DOM.JSString -> IO (DOM.JSVal, DOM.JSString)
+
+-- digestMessage :: DOM.JSString -> IO DOM.JSString
+-- digestMessage msg = DOM.checkPromiseResult =<< js_digestMessage msg
 
 
 -- REACT_APP_COGNITO_CLIENT_ID=4bbo68nrfgf1vif5jl0gt4hk71

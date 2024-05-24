@@ -44,6 +44,11 @@ library
     , mtl
     , exceptions
     , stm
+  if impl(ghcjs) || arch(javascript)
+    build-depends:
+      ghcjs-dom
+    js-sources:
+      src/jsbits/crypto.js
   exposed-modules:
     Common
 

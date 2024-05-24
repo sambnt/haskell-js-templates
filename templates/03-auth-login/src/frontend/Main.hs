@@ -107,19 +107,9 @@ main = do
 
   (authorizeReq, (OAuth.CodeVerifier codeVerifier)) <- OAuth.mkPkceAuthorizeRequest fooIdpApp
 
-  this   <- globalThisUnchecked
-  crypto <- GlobalCrypto.getCrypto this
-  subtle <- Crypto.getSubtle crypto
-  let (buf, off, len) = Buffer.fromByteString $ T.encodeUtf8 codeVerifier
-  codeVerifier' <- thaw $ js_slice_imm off (off + len) $ Buffer.getArrayBuffer buf
+  codeVerifier' <- hashSHA256 $ T.encodeUtf8 codeVerifier
 
-  hash <- SubtleCrypto.digest subtle ("SHA-256" :: T.Text) (DOM.ArrayBuffer $ JS.pToJSVal codeVerifier')
-  x <- (T.decodeUtf8 . Base16.encode . Buffer.toByteString 0 Nothing . Buffer.createFromArrayBuffer) <$> freeze (JS.pFromJSVal hash)
-  -- x <- (T.decodeUtf8 . Buffer.toByteString 0 (Just len) . Buffer.createFromArrayBuffer) <$> freeze codeVerifier'
-
-  error $ (show $ URI.serializeURIRef' authorizeReq) <> "|" <> T.unpack codeVerifier <> "|" <> T.unpack x
-  -- print "hello world"
-  -- putStrLn "Hello World2"
+  error $ (show $ URI.serializeURIRef' authorizeReq) <> "|" <> T.unpack codeVerifier <> "|" <> T.unpack (T.decodeUtf8 codeVerifier')
 
   runApp $ do
     let
@@ -170,3 +160,28 @@ viewModel x = div_ [] [
  , text (ms x)
  , button_ [ onClick SubtractOne ] [ text "-" ]
  ]
+
+hashSHA256 :: ByteString.ByteString -> IO ByteString.ByteString
+hashSHA256 bs = do
+  -- this   <- globalThisUnchecked
+  -- crypto <- GlobalCrypto.getCrypto this
+  -- subtle <- Crypto.getSubtle crypto
+  -- let (buf, off, len) = Buffer.fromByteString bs
+  -- arrayBuffer <- thaw $ js_slice_imm off (off + len) $ Buffer.getArrayBuffer buf
+  -- hash <- SubtleCrypto.digest subtle ("SHA-256" :: T.Text) (DOM.ArrayBuffer $ JS.pToJSVal arrayBuffer)
+  -- Base16.encode . Buffer.toByteString 0 Nothing . Buffer.createFromArrayBuffer <$> freeze (JS.pFromJSVal hash)
+
+  -- TODO: Use bytestring directly
+  T.encodeUtf8 . T.pack . DOM.fromJSString <$> digestMessage (DOM.toJSString $ T.unpack $ T.decodeUtf8 bs)
+
+-- async function digestMessage(message) {
+--   const msgUint8 = new TextEncoder().encode(message); // encode as (utf-8) Uint8Array
+--   const hashBuffer = await window.crypto.subtle.digest("SHA-256", msgUint8); // hash the message
+--   const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
+--   const hashHex = hashArray
+--     .map((b) => b.toString(16).padStart(2, "0"))
+--     .join(""); // convert bytes to hex string
+--   return hashHex;
+-- }
+
+-- digestMessage(text2).then((digestHex) => console.log(digestHex));
