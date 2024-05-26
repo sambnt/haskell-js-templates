@@ -44,11 +44,12 @@ library
     , mtl
     , exceptions
     , stm
+    , cookie
   if impl(ghcjs) || arch(javascript)
     build-depends:
       ghcjs-dom
     js-sources:
-      src/jsbits/crypto.js
+      jsbits/crypto.js
   exposed-modules:
     Common
 
@@ -77,10 +78,12 @@ executable hello-backend
     , base64-bytestring
     , utf8-string
     , exceptions
+    , cookie
 
 executable hello-frontend
   main-is:
-    Main.hs
+    -- Main.hs
+    Routed.hs
   if !impl(ghcjs) && !arch(javascript) && !flag(jsaddle)
     buildable: False
   else
@@ -111,6 +114,8 @@ executable hello-frontend
       , hoauth2
       , uri-bytestring
       , ghcjs-dom-javascript
+      , network-uri
+      , servant
     default-language:
       Haskell2010
     if flag(ios)

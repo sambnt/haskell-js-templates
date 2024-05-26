@@ -22,7 +22,7 @@ curl http://localhost:8081/counter
 # Build frontend
 nix build .#hello-frontend-js
 # Serve frontend
-python3 -m http.server --dir ./result/bin
+nix-shell -p miniserve --command "miniserve --spa --index index.html --port 8000 ./result/bin"
 
 javascript-unknown-ghcjs-cabal build exe:hello-frontend
 ```

@@ -33,6 +33,7 @@ import Control.Exception (throw)
 import Control.Monad.Identity (runIdentityT)
 import Lens.Micro ((.~), (%~))
 import Data.Function ((&))
+import Web.Cookie (SetCookie, defaultSetCookie, setCookieName, setCookieValue, setCookieHttpOnly, setCookieSameSite, setCookieMaxAge, sameSiteStrict)
 
 import Common
 
@@ -47,8 +48,24 @@ getCounterHandler = liftIO . STM.readTVarIO
 setCounterHandler :: (MonadIO m) => Database -> AuthUser -> Int -> m ()
 setCounterHandler db _ = liftIO . STM.atomically . STM.writeTVar db
 
+loginHandler :: MonadIO m => m (Headers '[Header "Set-Cookie" SetCookie] ())
+loginHandler = do
+  let
+    authCookie =
+      defaultSetCookie
+        { setCookieName = "X-Auth"
+        , setCookieValue = "deadbeef"
+        , setCookieHttpOnly = True
+        , setCookieSameSite = Just sameSiteStrict
+        -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+        -- Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
+        , setCookieMaxAge = Just 30 -- seconds
+        }
+  pure $ addHeader authCookie ()
+
 api :: Database -> Api (AsServerT App)
 api db = Api { getCounter = getCounterHandler db
+             , login = loginHandler
              , secured = securedHandlers db
              }
 

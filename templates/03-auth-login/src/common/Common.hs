@@ -12,12 +12,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE CPP #-}
+#if defined(ghcjs_HOST_OS)
 {-# LANGUAGE JavaScriptFFI #-}
+#endif
 
 module Common where
 
 import Servant.API
-    ( type (:<|>)(..), JSON, ReqBody, type (:>), Get, Post )
+    ( type (:<|>)(..), JSON, ReqBody, type (:>), Get, Post, Headers, Header)
+import Web.Cookie (SetCookie)
 import Data.Proxy ( Proxy(..) )
 import qualified Network.URI as Network
 import Servant.Links (linkURI)
@@ -34,7 +38,9 @@ import Control.Monad.Catch (MonadThrow, try)
 import qualified Control.Concurrent.STM as STM
 import Servant.Client.Generic (AsClientT, genericClient)
 
+#if defined(ghcjs_HOST_OS)
 import qualified GHCJS.DOM.Types as DOM
+#endif
 
 type Database = TVar Int
 
@@ -65,6 +71,10 @@ data Api mode = Api
     :: mode
     :- "counter"
     :> Get '[JSON] Int
+  , login
+    :: mode
+    :- "login"
+    :> Get '[JSON] (Headers '[Header "Set-Cookie" SetCookie] ())
   , secured
     :: mode
     :- AuthAccess
@@ -84,12 +94,14 @@ data SecuredApi mode = SecuredApi
 client :: RunClient m => Api (AsClientT m)
 client = genericClient
 
+#if defined(ghcjs_HOST_OS)
 -- Interruptible indicates an asynchronous import.
 foreign import javascript interruptible "((x, $c) => { return digestMessage(x).then(function(v) { $c(null, v); }, function(e) { $c(e, null); }); })"
   js_digestMessage :: DOM.JSString -> IO (DOM.JSVal, DOM.JSString)
 
 digestMessage :: DOM.JSString -> IO DOM.JSString
 digestMessage msg = DOM.checkPromiseResult =<< js_digestMessage msg
+#endif
 
 -- foreign import javascript interruptible
 --         "(($1, $c) => { return $1[\"arrayBuffer\"]().then(function(s) { $c(null, s);}, function(e) { $c(e, null);}); })"
