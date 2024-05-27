@@ -4,14 +4,20 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 
-import Data.Text
+import Data.Text (Text)
 import Servant.API
 import Servant
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), simpleCorsResourcePolicy, simpleMethods, simpleHeaders, cors)
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Aeson as Aeson
+import qualified Data.Text.Encoding as T
+import URI.ByteString (serializeURIRef')
+import Data.Foldable (find)
+import qualified Data.Map as Map
+import qualified Data.Text.Lazy as TL
 import Control.Concurrent.STM.TVar (TVar)
 import Control.Monad.IO.Class (liftIO)
 import Servant.Server.Generic (genericServeTWithContext)
@@ -24,16 +30,24 @@ import qualified Data.Set as Set
 import Network.Wai (Request, requestHeaders)
 import Servant.Server.Experimental.Auth (AuthServerData, AuthHandler(AuthHandler))
 import Servant.Server.Generic (AsServerT)
-import Control.Monad (guard)
+import Control.Monad (guard, join)
 import Control.Arrow ((>>>), second)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Catch (MonadThrow, try)
-import Control.Monad.Except (ExceptT(ExceptT))
+import Control.Monad.Catch (MonadThrow, try, throwM)
+import Control.Monad.Except (ExceptT(ExceptT), runExceptT)
 import Control.Exception (throw)
 import Control.Monad.Identity (runIdentityT)
 import Lens.Micro ((.~), (%~))
 import Data.Function ((&))
-import Web.Cookie (SetCookie, defaultSetCookie, setCookieName, setCookieValue, setCookieHttpOnly, setCookieSameSite, setCookieMaxAge, sameSiteStrict)
+import Web.Cookie (SetCookie, defaultSetCookie, setCookieName, setCookieValue, setCookieHttpOnly, setCookieSameSite, setCookieMaxAge, sameSiteStrict, renderSetCookieBS, parseCookies)
+import qualified Network.OAuth.OAuth2 as OAuth
+import qualified Network.OAuth2.Experiment as OAuth
+import qualified Network.OAuth2.Experiment.Pkce as OAuth
+import qualified Network.OAuth2.Experiment.Grants.AuthorizationCode as OAuth
+import qualified Network.OAuth2.Experiment.Types as OAuth
+import qualified System.Entropy as Crypto
+import Network.HTTP.Client.TLS (newTlsManagerWith, tlsManagerSettings)
+import Network.HTTP.Client (Manager, managerModifyRequest)
 
 import Common
 
@@ -42,32 +56,123 @@ appToHandler (App app) = (Handler . ExceptT . try . runIdentityT) app
 
 type instance AuthServerData AuthAccess = Maybe AuthUser
 
-getCounterHandler :: (MonadThrow m, MonadIO m) => Database -> m Int
-getCounterHandler = liftIO . STM.readTVarIO
+getCounterHandler :: (MonadThrow m, MonadIO m) => Database -> Maybe Text -> m Int
+getCounterHandler db mHdr = do
+  liftIO $ putStrLn $ show (getAuthCookie . T.encodeUtf8 =<< mHdr)
+  liftIO . STM.readTVarIO . dbCounter $ db
 
 setCounterHandler :: (MonadIO m) => Database -> AuthUser -> Int -> m ()
-setCounterHandler db _ = liftIO . STM.atomically . STM.writeTVar db
+setCounterHandler db _ = liftIO . STM.atomically . STM.writeTVar (dbCounter db)
 
-loginHandler :: MonadIO m => m (Headers '[Header "Set-Cookie" SetCookie] ())
-loginHandler = do
-  let
-    authCookie =
-      defaultSetCookie
-        { setCookieName = "X-Auth"
-        , setCookieValue = "deadbeef"
-        , setCookieHttpOnly = True
-        , setCookieSameSite = Just sameSiteStrict
-        -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-        -- Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
-        , setCookieMaxAge = Just 30 -- seconds
-        }
-  pure $ addHeader authCookie ()
+-- validateAuthHeader :: Database -> Maybe Text -> m Bool
+-- validateAuthHeader _   Nothing   = False
+-- validateAuthHeader db (Just hdr) =
 
-api :: Database -> Api (AsServerT App)
-api db = Api { getCounter = getCounterHandler db
-             , login = loginHandler
-             , secured = securedHandlers db
-             }
+oauthApp :: Text -> OAuth.AuthorizationCodeApplication
+oauthApp nonce =
+  OAuth.AuthorizationCodeApplication { OAuth.acName = "bnt-test"
+                                     , OAuth.acClientId = "4pjg54s9u61e3eb6emeong1jsk"
+                                     , OAuth.acClientSecret = ""
+                                     , OAuth.acScope = mempty -- Set.fromList ["openid", "profile", "email"]
+                                     , OAuth.acRedirectUri = parseURI' "http://localhost:8081/login"
+                                     , OAuth.acAuthorizeState = OAuth.AuthorizeState $ TL.fromStrict nonce
+                                     , OAuth.acAuthorizeRequestExtraParams = mempty
+                                     , OAuth.acTokenRequestAuthenticationMethod = OAuth.ClientSecretBasic
+                                     }
+cognitoIdp :: OAuth.Idp Cognito
+cognitoIdp = OAuth.Idp { OAuth.idpUserInfoEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/userInfo"
+                       , OAuth.idpAuthorizeEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/authorize"
+                       , OAuth.idpTokenEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token"
+                       , OAuth.idpDeviceAuthorizationEndpoint = Nothing
+                       }
+
+fooIdpApp :: Text -> OAuth.IdpApplication Cognito OAuth.AuthorizationCodeApplication
+fooIdpApp nonce = OAuth.IdpApplication { OAuth.idp = cognitoIdp
+                                       , OAuth.application = oauthApp nonce
+                                       }
+
+getAuthCookie :: ByteString -> Maybe ByteString
+getAuthCookie = fmap snd . find (\(name, _) -> name == "X-Auth") . parseCookies
+
+loginHandler :: (MonadThrow m, MonadIO m) => Database -> Manager -> Maybe Text -> Maybe Text -> Maybe Text -> m (Headers '[Header "Set-Cookie" SetCookie] ())
+loginHandler db manager mAuthHdr mCode mNonce = do
+  liftIO $ putStrLn $ show mAuthHdr
+  let mAuthCookie = fmap T.decodeUtf8 . getAuthCookie . T.encodeUtf8 =<< mAuthHdr
+  liftIO $ putStrLn $ "state " <> show mAuthCookie <> " " <> show mCode <> " " <> show mNonce
+
+  state <- case (mAuthCookie, mNonce) of
+    (Nothing, Just nonce) ->
+      liftIO $ getAuthState db (Nonce nonce)
+    (Just cookie, _) ->
+      liftIO $ getAuthState db (Cookie cookie)
+    (Nothing, Nothing) ->
+      pure Nothing
+
+  case state of
+    Nothing -> do
+      -- Generate opaque code
+      opaqueCode <- liftIO $ T.decodeUtf8 . ByteStringBase64.encode <$> Crypto.getEntropy 64
+      -- Generate nonce
+      nonce <- liftIO $ T.decodeUtf8 . ByteStringBase64.encode <$> Crypto.getEntropy 16
+      -- Set state to "InFlight"
+      let newState = InFlight opaqueCode
+      liftIO $ writeAuthState db (Nonce nonce) newState
+      -- Set "X-Auth" header
+      let
+        authCookie =
+          defaultSetCookie
+            { setCookieName = "X-Auth"
+            , setCookieValue = T.encodeUtf8 opaqueCode
+            , setCookieHttpOnly = True
+            , setCookieSameSite = Just sameSiteStrict
+            -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+            -- Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
+            , setCookieMaxAge = Nothing -- Just 300 -- seconds
+            }
+      -- Generate redirect URL
+        authorizeUrl = OAuth.mkAuthorizationRequest (fooIdpApp nonce)
+      throwM $ err301 { errHeaders = [("Location", serializeURIRef' authorizeUrl), ("Set-Cookie", renderSetCookieBS authCookie)] }
+    Just (InFlight opaqueCode) -> do
+      liftIO $ putStrLn "in flight!"
+      -- case mNonce of
+      --   Nothing ->
+      --     error "Auth provider didn't provide state"
+      --   Just nonce' ->
+      --     if nonce /= nonce'
+      --     then error "Auth provider state didn't match our state"
+      --     else
+      case mCode of
+        Nothing ->
+          error "Auth provider didn't provide code"
+        (Just code) -> do
+          let
+            -- tokenInfo = OAuth.AuthorizationCodeTokenRequest
+            --   { OAuth.trCode = OAuth.ExchangeToken code
+            --   , OAuth.trGrantType = OAuth.GTAuthorizationCode
+            --   , OAuth.trRedirectUri = OAuth.RedirectUri $ parseURI' "http://localhost:8081/login"
+            --   }
+            tokenInfo = OAuth.ExchangeToken code
+
+          -- curl -XPOST "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token?grant_type=authorization_code&client_id=4pjg54s9u61e3eb6emeong1jsk&code=faac7f81-b515-44cc-9dd4-9090f769cb7b&redirect_uri=http%3A%2F%2Flocalhost%3A8081%2Flogin" -H "Content-Type: application/x-www-form-urlencoded" -v | jq .
+
+          -- initialRequest <- parseRequest "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token"
+          -- r <- runExceptT $ OAuth.conduitTokenRequest (fooIdpApp "") manager tokenInfo
+          -- case r of
+          --   Left err -> error $ show err
+          --   Right token -> liftIO $ putStrLn $ show token
+          -- throwM $ err301 { errHeaders = [("Location", "http://localhost:8000")] }
+    Just (Done _code authInfo) -> do
+      throwM $ err301 { errHeaders = [("Location", "http://localhost:8000")] }
+      -- Collect code and nonce from request
+      -- Compare nonce with inFlightState.nonce
+      -- Send code to AWS to retrieve tokens
+      -- Set state to "Completed"
+
+api :: Database -> Manager -> Api (AsServerT App)
+api db manager = Api { getCounter = getCounterHandler db
+                     , login = loginHandler db manager
+                     , secured = securedHandlers db
+                     }
 
 securedHandlers :: Database -> Maybe AuthUser -> SecuredApi (AsServerT App)
 securedHandlers db (Just authUser) =
@@ -113,8 +218,17 @@ verifyToken (AccessToken token) = do
 main :: IO ()
 main = do
   counter <- STM.newTVarIO 0
+  authMap <- STM.newTVarIO Map.empty
+
+  manager <- newTlsManagerWith $
+    tlsManagerSettings { managerModifyRequest = (\r -> do
+                               print r
+                               pure r
+                           )
+                       }
 
   let
+    db = Database counter authMap
     ctx =
       authHandler -- @AuthUser
       :. EmptyContext
@@ -125,5 +239,12 @@ main = do
       corsRequestHeaders = simpleHeaders <> ["Content-Type", "Authorization"]
     }
   run 8081
+    $ logRequestHeaders
     $ cors (const $ Just corsPolicy)
-    $ genericServeTWithContext appToHandler (api counter) ctx
+    $ genericServeTWithContext appToHandler (api db manager) ctx
+
+logRequestHeaders :: Application -> Application
+logRequestHeaders incoming request outgoing = do
+   let headerList = requestHeaders request
+   liftIO $ mapM_ print headerList
+   incoming request outgoing

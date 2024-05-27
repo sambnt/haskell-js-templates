@@ -4,7 +4,7 @@
 
   # Cross compilation support:
   crossPlatforms = p: pkgs.lib.optionals pkgs.stdenv.hostPlatform.isx86_64 ([
-    p.ghcjs
+    # p.ghcjs
   ]);
 
   modules = [
@@ -14,10 +14,10 @@
       # is old and doesn't include the "javascript-unknown-ghcjs" tuple. Later
       # versions of gnu-config do, so we'll need to wait until nixpkgs is
       # updated.
-      packages.network.components.library.dontUpdateAutotoolsGnuConfigScripts = true;
-      packages.network.components.library.preConfigure = ''
-        ${pkgs.pkgsBuildHost.autoconf}/bin/autoreconf -i
-      '';
+      # packages.network.components.library.dontUpdateAutotoolsGnuConfigScripts = true;
+      # packages.network.components.library.preConfigure = ''
+      #   ${pkgs.pkgsBuildHost.autoconf}/bin/autoreconf -i
+      # '';
       packages.entropy.package.buildType = pkgs.lib.mkForce "Simple";
     })
   ];

@@ -67,8 +67,6 @@ data Action
   | SayHelloWorld
   deriving (Show, Eq)
 
-data Cognito = Cognito deriving (Eq, Show)
-
 -- | Entry point for a miso application
 main :: IO ()
 main = do
@@ -89,7 +87,7 @@ main = do
                                          , OAuth.acClientSecret = ""
                                          , OAuth.acScope = mempty -- Set.fromList ["openid", "profile", "email"]
                                          , OAuth.acRedirectUri = parseURI' "http://localhost:3000/dashboard"
-                                         , OAuth.acAuthorizeState = "changeMe" --undefined
+                                         , OAuth.acAuthorizeState = OAuth.AuthorizeState "changeMe" --undefined
                                          , OAuth.acAuthorizeRequestExtraParams = mempty
                                          , OAuth.acTokenRequestAuthenticationMethod = OAuth.ClientSecretBasic
                                          }
@@ -126,9 +124,6 @@ main = do
 
 foreign import javascript unsafe
   "((x,y,z) => { return z.slice(x,y); })" js_slice_imm :: Int -> Int -> ArrayBuffer -> ArrayBuffer
-
-parseURI' :: ByteString.ByteString -> URIRef Absolute
-parseURI' = either (\err -> error $ show err) id . parseURI laxURIParserOptions
 
 -- | Updates model, optionally introduces side effects
 updateModel :: ClientEnv -> Action -> Model -> Effect Action Model

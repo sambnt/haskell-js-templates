@@ -38,10 +38,13 @@ library
       base < 5
     , aeson
     , servant
+    , containers
     , servant-client-core
     , text
     , network-uri
     , mtl
+    , bytestring
+    , uri-bytestring
     , exceptions
     , stm
     , cookie
@@ -67,7 +70,12 @@ executable hello-backend
     , servant-server
     , wai
     , wai-cors
+    , uri-bytestring
     , warp
+    , http-client
+    , hoauth2
+    , http-client-tls
+    , entropy
     , text
     , stm
     , mtl
