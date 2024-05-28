@@ -14,6 +14,7 @@ import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), simpleCorsResourceP
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
 import URI.ByteString (serializeURIRef')
 import Data.Foldable (find)
 import qualified Data.Map as Map
@@ -39,7 +40,7 @@ import Control.Exception (throw)
 import Control.Monad.Identity (runIdentityT)
 import Lens.Micro ((.~), (%~))
 import Data.Function ((&))
-import Web.Cookie (SetCookie, defaultSetCookie, setCookieName, setCookieValue, setCookieHttpOnly, setCookieSameSite, setCookieMaxAge, sameSiteStrict, renderSetCookieBS, parseCookies)
+import Web.Cookie (SetCookie, defaultSetCookie, setCookieName, setCookieValue, setCookieHttpOnly, setCookieSameSite, setCookieMaxAge, sameSiteLax, renderSetCookieBS, parseCookies)
 import qualified Network.OAuth.OAuth2 as OAuth
 import qualified Network.OAuth2.Experiment as OAuth
 import qualified Network.OAuth2.Experiment.Pkce as OAuth
@@ -48,6 +49,8 @@ import qualified Network.OAuth2.Experiment.Types as OAuth
 import qualified System.Entropy as Crypto
 import Network.HTTP.Client.TLS (newTlsManagerWith, tlsManagerSettings)
 import Network.HTTP.Client (Manager, managerModifyRequest)
+import qualified Network.HTTP.Client as HTTP
+import qualified Network.HTTP.Types as HTTP
 
 import Common
 
@@ -94,19 +97,28 @@ fooIdpApp nonce = OAuth.IdpApplication { OAuth.idp = cognitoIdp
 getAuthCookie :: ByteString -> Maybe ByteString
 getAuthCookie = fmap snd . find (\(name, _) -> name == "X-Auth") . parseCookies
 
-loginHandler :: (MonadThrow m, MonadIO m) => Database -> Manager -> Maybe Text -> Maybe Text -> Maybe Text -> m (Headers '[Header "Set-Cookie" SetCookie] ())
+-- loginHandler :: (MonadThrow m, MonadIO m) => Database -> Manager -> Maybe Text -> Maybe Text -> Maybe Text -> m (Headers '[Header "Set-Cookie" SetCookie] OAuth.OAuth2Token)
+loginHandler :: (MonadThrow m, MonadIO m) => Database -> Manager -> Maybe Text -> Maybe Text -> Maybe Text -> m OAuth.OAuth2Token
 loginHandler db manager mAuthHdr mCode mNonce = do
-  liftIO $ putStrLn $ show mAuthHdr
+  -- liftIO $ putStrLn $ show mAuthHdr
   let mAuthCookie = fmap T.decodeUtf8 . getAuthCookie . T.encodeUtf8 =<< mAuthHdr
-  liftIO $ putStrLn $ "state " <> show mAuthCookie <> " " <> show mCode <> " " <> show mNonce
+  -- liftIO $ putStrLn $ "state " <> show mAuthCookie <> " " <> show mCode <> " " <> show mNonce
+
+  st <- liftIO $ STM.readTVarIO (dbAuth db)
+  -- liftIO $ print st
 
   state <- case (mAuthCookie, mNonce) of
-    (Nothing, Just nonce) ->
-      liftIO $ getAuthState db (Nonce nonce)
-    (Just cookie, _) ->
-      liftIO $ getAuthState db (Cookie cookie)
+    (_, Just nonce) -> do
+      x <- liftIO $ getAuthState db (Nonce nonce)
+      if x == Nothing then error ("nonce '" <> show nonce <> "' failed") else pure x
+    (Just cookie, Nothing) -> do
+      x <- liftIO $ getAuthState db (Cookie cookie)
+      -- if x == Nothing then error ("cookie '" <> T.unpack cookie <> "' failed") else pure x
+      pure x
     (Nothing, Nothing) ->
       pure Nothing
+
+  -- liftIO $ putStrLn $ " got state: " <> show state
 
   case state of
     Nothing -> do
@@ -116,24 +128,15 @@ loginHandler db manager mAuthHdr mCode mNonce = do
       nonce <- liftIO $ T.decodeUtf8 . ByteStringBase64.encode <$> Crypto.getEntropy 16
       -- Set state to "InFlight"
       let newState = InFlight opaqueCode
+      -- liftIO $ print $ "Writing cookie: " <> T.unpack opaqueCode
+      -- liftIO $ print $ "Writing nonce: " <> show nonce
       liftIO $ writeAuthState db (Nonce nonce) newState
-      -- Set "X-Auth" header
-      let
-        authCookie =
-          defaultSetCookie
-            { setCookieName = "X-Auth"
-            , setCookieValue = T.encodeUtf8 opaqueCode
-            , setCookieHttpOnly = True
-            , setCookieSameSite = Just sameSiteStrict
-            -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-            -- Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
-            , setCookieMaxAge = Nothing -- Just 300 -- seconds
-            }
       -- Generate redirect URL
+      let
         authorizeUrl = OAuth.mkAuthorizationRequest (fooIdpApp nonce)
-      throwM $ err301 { errHeaders = [("Location", serializeURIRef' authorizeUrl), ("Set-Cookie", renderSetCookieBS authCookie)] }
+      throwM $ err302 { errHeaders = [("Location", serializeURIRef' authorizeUrl)] }
     Just (InFlight opaqueCode) -> do
-      liftIO $ putStrLn "in flight!"
+      -- liftIO $ putStrLn "in flight!"
       -- case mNonce of
       --   Nothing ->
       --     error "Auth provider didn't provide state"
@@ -145,24 +148,53 @@ loginHandler db manager mAuthHdr mCode mNonce = do
         Nothing ->
           error "Auth provider didn't provide code"
         (Just code) -> do
-          let
+          -- let
             -- tokenInfo = OAuth.AuthorizationCodeTokenRequest
             --   { OAuth.trCode = OAuth.ExchangeToken code
             --   , OAuth.trGrantType = OAuth.GTAuthorizationCode
             --   , OAuth.trRedirectUri = OAuth.RedirectUri $ parseURI' "http://localhost:8081/login"
             --   }
-            tokenInfo = OAuth.ExchangeToken code
+            -- tokenInfo = OAuth.ExchangeToken code
 
           -- curl -XPOST "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token?grant_type=authorization_code&client_id=4pjg54s9u61e3eb6emeong1jsk&code=faac7f81-b515-44cc-9dd4-9090f769cb7b&redirect_uri=http%3A%2F%2Flocalhost%3A8081%2Flogin" -H "Content-Type: application/x-www-form-urlencoded" -v | jq .
 
-          -- initialRequest <- parseRequest "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token"
-          -- r <- runExceptT $ OAuth.conduitTokenRequest (fooIdpApp "") manager tokenInfo
-          -- case r of
-          --   Left err -> error $ show err
-          --   Right token -> liftIO $ putStrLn $ show token
-          -- throwM $ err301 { errHeaders = [("Location", "http://localhost:8000")] }
-    Just (Done _code authInfo) -> do
-      throwM $ err301 { errHeaders = [("Location", "http://localhost:8000")] }
+          initialRequest <- HTTP.parseRequest "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token"
+          let request = initialRequest { HTTP.method = "POST"
+                                       , HTTP.requestHeaders = [("Content-Type", "application/x-www-form-urlencoded")]
+                                       }
+                        & HTTP.setQueryString [ ("grant_type", Just "authorization_code")
+                                              , ("client_id", Just "4pjg54s9u61e3eb6emeong1jsk")
+                                              , ("code", Just $ T.encodeUtf8 code)
+                                              , ("redirect_uri", Just "http://localhost:8081/login")
+                                              ]
+          resp <- liftIO $ HTTP.httpLbs request manager
+          case HTTP.statusCode $ HTTP.responseStatus resp of
+            200 -> do
+              case Aeson.eitherDecode $ HTTP.responseBody resp of
+                Left e -> error $ "Error decoding token: " <> show e
+                Right (token :: OAuth.OAuth2Token) -> do
+                  liftIO $ writeAuthState db (Cookie opaqueCode) (Done token)
+                  st <- liftIO $ STM.readTVarIO (dbAuth db)
+                  -- liftIO $ print st
+
+                  -- Set "X-Auth" header
+                  let
+                    authCookie =
+                      defaultSetCookie
+                        { setCookieName = "X-Auth"
+                        , setCookieValue = T.encodeUtf8 opaqueCode
+                        , setCookieHttpOnly = True
+                        , setCookieSameSite = Just sameSiteLax
+                        -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+                        -- Indicates the number of seconds until the cookie expires. A zero or negative number will expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
+                        , setCookieMaxAge = Nothing -- Just 300 -- seconds
+                        }
+                  throwM $ err302 { errHeaders = [("Location", "http://localhost:8081/login"), ("Set-Cookie", renderSetCookieBS authCookie)] }
+            s     -> error $ "Token response was: " <> show s
+    Just (Done token) -> do
+      -- liftIO $ print token
+      return $ token
+      -- throwM $ err302 { errHeaders = [("Location", "http://localhost:8000")] }
       -- Collect code and nonce from request
       -- Compare nonce with inFlightState.nonce
       -- Send code to AWS to retrieve tokens
@@ -220,12 +252,12 @@ main = do
   counter <- STM.newTVarIO 0
   authMap <- STM.newTVarIO Map.empty
 
-  manager <- newTlsManagerWith $
-    tlsManagerSettings { managerModifyRequest = (\r -> do
-                               print r
-                               pure r
-                           )
-                       }
+  manager <- newTlsManagerWith $ tlsManagerSettings
+    -- tlsManagerSettings { managerModifyRequest = (\r -> do
+    --                            print r
+    --                            pure r
+    --                        )
+    --                    }
 
   let
     db = Database counter authMap

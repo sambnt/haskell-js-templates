@@ -47,6 +47,7 @@ library
     , uri-bytestring
     , exceptions
     , stm
+    , hoauth2
     , cookie
   if impl(ghcjs) || arch(javascript)
     build-depends:
@@ -75,6 +76,7 @@ executable hello-backend
     , http-client
     , hoauth2
     , http-client-tls
+    , http-types
     , entropy
     , text
     , stm

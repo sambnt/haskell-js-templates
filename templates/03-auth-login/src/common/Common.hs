@@ -34,6 +34,7 @@ import qualified Data.Aeson as Aeson
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text (Text)
 import Control.Monad.IO.Class (liftIO, MonadIO)
+import qualified Network.OAuth.OAuth2 as OAuth
 import Control.Monad.Identity (IdentityT, runIdentityT)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -66,11 +67,12 @@ data AuthInfo = AuthInfo { authIdToken      :: Text
                          }
 
 data AuthState = InFlight OpaqueCode
-               | Done Text AuthInfo
+               | Done OAuth.OAuth2Token
+               deriving (Eq, Show)
 
 data AuthKey = Cookie OpaqueCode
              | Nonce Text
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 data Database = Database
   { dbCounter :: TVar Int
@@ -133,7 +135,7 @@ data Api mode = Api
     :> Header "Cookie" Text
     :> QueryParam "code" Text
     :> QueryParam "state" Text
-    :> Get '[JSON] (Headers '[Header "Set-Cookie" SetCookie] ())
+    :> Get '[JSON] OAuth.OAuth2Token
   , secured
     :: mode
     :- AuthAccess
