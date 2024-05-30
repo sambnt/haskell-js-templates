@@ -109,7 +109,7 @@ newtype App a = App (IdentityT IO a)
 
 data AuthUser
   = AuthUser { authUserSub           :: !Text
-             , authUserName          :: !Text
+             -- , authUserName          :: !Text
              , authUserEmail         :: !Text
              , authUserEmailVerified :: !Bool
              }
@@ -119,7 +119,7 @@ data AuthUser
 instance FromJSON AuthUser where
   parseJSON = Aeson.withObject "AuthUser" $ \v -> AuthUser
     <$> v Aeson..: "sub"
-    <*> v Aeson..: "name"
+    -- <*> v Aeson..: "name"
     <*> v Aeson..: "email"
     <*> v Aeson..: "email_verified"
 
@@ -127,7 +127,6 @@ data Api mode = Api
   { getCounter
     :: mode
     :- "counter"
-    :> Header "Cookie" Text
     :> Get '[JSON] Int
   , login
     :: mode

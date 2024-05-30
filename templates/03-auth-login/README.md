@@ -16,7 +16,7 @@ nix build .#"hello-spa:exe:hello-backend" -o result-backend
 
 # Test it out
 curl http://localhost:8081/counter
-curl -d "1" -H "Content-Type: application/json" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJlbWFpbCI6ImZvb0BiYXIuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWV9.pV7R4m7Jo0hvWKVRJsTYrggTuYNZ1H0HP6kTpwagzEE" http://localhost:8081/counter
+curl -d "1" -H "Content-Type: application/json" -H "Cookie: X-Auth=exqukxeq+KbcZrFcn/dGf9zY9bvYK6W67rn6jx0dAmEWVyOWB6+9Hh1Bg1Mzt00/SCzgbUTJPix4g9JNl6/gBQ==" http://localhost:8081/counter
 curl http://localhost:8081/counter
 
 # Build frontend

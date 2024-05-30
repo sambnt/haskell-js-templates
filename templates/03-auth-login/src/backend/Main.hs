@@ -9,6 +9,7 @@
 import Data.Text (Text)
 import Servant.API
 import Servant
+import Data.Maybe (fromJust)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), simpleCorsResourcePolicy, simpleMethods, simpleHeaders, cors)
 import qualified Control.Concurrent.STM as STM
@@ -59,10 +60,8 @@ appToHandler (App app) = (Handler . ExceptT . try . runIdentityT) app
 
 type instance AuthServerData AuthAccess = Maybe AuthUser
 
-getCounterHandler :: (MonadThrow m, MonadIO m) => Database -> Maybe Text -> m Int
-getCounterHandler db mHdr = do
-  liftIO $ putStrLn $ show (getAuthCookie . T.encodeUtf8 =<< mHdr)
-  liftIO . STM.readTVarIO . dbCounter $ db
+getCounterHandler :: (MonadThrow m, MonadIO m) => Database -> m Int
+getCounterHandler = liftIO . STM.readTVarIO . dbCounter
 
 setCounterHandler :: (MonadIO m) => Database -> AuthUser -> Int -> m ()
 setCounterHandler db _ = liftIO . STM.atomically . STM.writeTVar (dbCounter db)
@@ -218,11 +217,23 @@ newtype AccessToken = AccessToken ByteString
 mkAuthHandler :: (req -> Handler usr) -> AuthHandler req usr
 mkAuthHandler = AuthHandler
 
-authHandler :: AuthHandler Request (Maybe AuthUser)
-authHandler = mkAuthHandler $ \req -> do
-  case getToken req of
-    Nothing    -> pure Nothing
-    Just token -> liftIO $ verifyToken token
+authHandler :: Database -> AuthHandler Request (Maybe AuthUser)
+authHandler db = mkAuthHandler $ \req -> do
+  case getAuthCookieFromRequest req of
+    Nothing -> pure Nothing
+    (Just opaqueCode) -> do
+      authState <- liftIO $ getAuthState db (Cookie opaqueCode)
+      case authState of
+        Just (Done token) -> do
+          let token' = AccessToken $ T.encodeUtf8 $ OAuth.idtoken $ fromJust $ OAuth.idToken token
+          liftIO $ verifyToken token'
+        _ ->
+          pure Nothing
+
+
+getAuthCookieFromRequest :: Request -> Maybe OpaqueCode
+getAuthCookieFromRequest req =
+  fmap T.decodeUtf8 . getAuthCookie =<< lookup "Cookie" (requestHeaders req)
 
 getToken :: Request -> Maybe AccessToken
 getToken req = do
@@ -262,7 +273,7 @@ main = do
   let
     db = Database counter authMap
     ctx =
-      authHandler -- @AuthUser
+      authHandler db -- @AuthUser
       :. EmptyContext
 
     corsPolicy = simpleCorsResourcePolicy{
