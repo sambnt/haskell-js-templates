@@ -4,21 +4,24 @@
 
   # Cross compilation support:
   crossPlatforms = p: pkgs.lib.optionals pkgs.stdenv.hostPlatform.isx86_64 ([
-    # p.ghcjs
+    p.ghcjs
   ]);
 
   modules = [
     ({pkgs,config,...}: {
-      # This is necessary because
-      # https://github.com/NixOS/nixpkgs/blob/d474c87aff678090f108a23f0b3e521ae0d4e034/pkgs/development/libraries/gnu-config/default.nix
-      # is old and doesn't include the "javascript-unknown-ghcjs" tuple. Later
-      # versions of gnu-config do, so we'll need to wait until nixpkgs is
-      # updated.
-      # packages.network.components.library.dontUpdateAutotoolsGnuConfigScripts = true;
-      # packages.network.components.library.preConfigure = ''
-      #   ${pkgs.pkgsBuildHost.autoconf}/bin/autoreconf -i
-      # '';
       packages.entropy.package.buildType = pkgs.lib.mkForce "Simple";
+    })
+    # ({pkgs,lib,config,...}: lib.optionalAttrs (pkgs.stdenv.buildPlatform.isGhcjs) {
+    ({pkgs,lib,config,...}: lib.optionalAttrs (true) {
+       # This is necessary because
+       # https://github.com/NixOS/nixpkgs/blob/d474c87aff678090f108a23f0b3e521ae0d4e034/pkgs/development/libraries/gnu-config/default.nix
+       # is old and doesn't include the "javascript-unknown-ghcjs" tuple. Later
+       # versions of gnu-config do, so we'll need to wait until nixpkgs is
+       # updated.
+       packages.network.components.library.dontUpdateAutotoolsGnuConfigScripts = true;
+       packages.network.components.library.preConfigure = ''
+         ${pkgs.pkgsBuildHost.autoconf}/bin/autoreconf -i
+       '';
     })
   ];
 

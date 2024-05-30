@@ -35,6 +35,7 @@ import qualified GHCJS.DOM.Crypto as Crypto
 import qualified GHCJS.DOM.GlobalCrypto as GlobalCrypto
 import GHCJS.DOM (globalThisUnchecked)
 import GHCJS.DOM.Types (fromJSValUnchecked, toJSVal)
+import qualified GHCJS.DOM.XMLHttpRequest          as JS
 
 import qualified GHCJS.Buffer as Buffer
 import qualified GHCJS.Buffer as Buffer
@@ -67,47 +68,54 @@ data Action
   | SayHelloWorld
   deriving (Show, Eq)
 
+foreign import javascript unsafe
+  "((x) => { x.withCredentials = true; })"
+  js_setWithCredentials :: JS.XMLHttpRequest -> DOM.DOM ()
+
 -- | Entry point for a miso application
 main :: IO ()
 main = do
-  let clientEnv = mkClientEnv BaseUrl
-        { baseUrlScheme = Http
-        , baseUrlHost = "localhost"
-        , baseUrlPort = 8081
-        , baseUrlPath = ""
-        }
+  let clientEnv =
+        ClientEnv { baseUrl = BaseUrl
+                              { baseUrlScheme = Http
+                              , baseUrlHost = "localhost"
+                              , baseUrlPort = 8081
+                              , baseUrlPath = ""
+                              }
+                  , fixUpXhr = js_setWithCredentials
+                  }
 
   (Right initialCount) <- flip runClientM clientEnv $ getCounter API.client
 
-  let
-    oauthApp :: OAuth.AuthorizationCodeApplication
-    oauthApp =
-      OAuth.AuthorizationCodeApplication { OAuth.acName = "bnt-test"
-                                         , OAuth.acClientId = "4bbo68nrfgf1vif5jl0gt4hk71"
-                                         , OAuth.acClientSecret = ""
-                                         , OAuth.acScope = mempty -- Set.fromList ["openid", "profile", "email"]
-                                         , OAuth.acRedirectUri = parseURI' "http://localhost:3000/dashboard"
-                                         , OAuth.acAuthorizeState = OAuth.AuthorizeState "changeMe" --undefined
-                                         , OAuth.acAuthorizeRequestExtraParams = mempty
-                                         , OAuth.acTokenRequestAuthenticationMethod = OAuth.ClientSecretBasic
-                                         }
-    cognitoIdp :: OAuth.Idp Cognito
-    cognitoIdp = OAuth.Idp { OAuth.idpUserInfoEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/userInfo"
-                           , OAuth.idpAuthorizeEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/authorize"
-                           , OAuth.idpTokenEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token"
-                           , OAuth.idpDeviceAuthorizationEndpoint = Nothing
-                           }
+  -- let
+  --   oauthApp :: OAuth.AuthorizationCodeApplication
+  --   oauthApp =
+  --     OAuth.AuthorizationCodeApplication { OAuth.acName = "bnt-test"
+  --                                        , OAuth.acClientId = "4bbo68nrfgf1vif5jl0gt4hk71"
+  --                                        , OAuth.acClientSecret = ""
+  --                                        , OAuth.acScope = mempty -- Set.fromList ["openid", "profile", "email"]
+  --                                        , OAuth.acRedirectUri = parseURI' "http://localhost:3000/dashboard"
+  --                                        , OAuth.acAuthorizeState = OAuth.AuthorizeState "changeMe" --undefined
+  --                                        , OAuth.acAuthorizeRequestExtraParams = mempty
+  --                                        , OAuth.acTokenRequestAuthenticationMethod = OAuth.ClientSecretBasic
+  --                                        }
+  --   cognitoIdp :: OAuth.Idp Cognito
+  --   cognitoIdp = OAuth.Idp { OAuth.idpUserInfoEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/userInfo"
+  --                          , OAuth.idpAuthorizeEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/authorize"
+  --                          , OAuth.idpTokenEndpoint = parseURI' "https://bnt-test.auth.ap-southeast-2.amazoncognito.com/oauth2/token"
+  --                          , OAuth.idpDeviceAuthorizationEndpoint = Nothing
+  --                          }
 
-    fooIdpApp :: OAuth.IdpApplication Cognito OAuth.AuthorizationCodeApplication
-    fooIdpApp = OAuth.IdpApplication { OAuth.idp = cognitoIdp
-                                     , OAuth.application = oauthApp
-                                     }
+  --   fooIdpApp :: OAuth.IdpApplication Cognito OAuth.AuthorizationCodeApplication
+  --   fooIdpApp = OAuth.IdpApplication { OAuth.idp = cognitoIdp
+  --                                    , OAuth.application = oauthApp
+  --                                    }
 
-  (authorizeReq, (OAuth.CodeVerifier codeVerifier)) <- OAuth.mkPkceAuthorizeRequest fooIdpApp
+  -- (authorizeReq, (OAuth.CodeVerifier codeVerifier)) <- OAuth.mkPkceAuthorizeRequest fooIdpApp
 
-  codeVerifier' <- hashSHA256 $ T.encodeUtf8 codeVerifier
+  -- codeVerifier' <- hashSHA256 $ T.encodeUtf8 codeVerifier
 
-  error $ (show $ URI.serializeURIRef' authorizeReq) <> "|" <> T.unpack codeVerifier <> "|" <> T.unpack (T.decodeUtf8 codeVerifier')
+  -- error $ (show $ URI.serializeURIRef' authorizeReq) <> "|" <> T.unpack codeVerifier <> "|" <> T.unpack (T.decodeUtf8 codeVerifier')
 
   runApp $ do
     let
@@ -128,10 +136,10 @@ foreign import javascript unsafe
 -- | Updates model, optionally introduces side effects
 updateModel :: ClientEnv -> Action -> Model -> Effect Action Model
 updateModel clientEnv AddOne m = (m + 1) <# do
-  flip runClientM clientEnv $ setCounter securedClient $ (m + 1)
+  flip runClientM clientEnv $ setCounter secureBrowserClient $ (m + 1)
   pure NoOp
 updateModel clientEnv SubtractOne m = (m - 1) <# do
-  flip runClientM clientEnv $ setCounter securedClient $ (m - 1)
+  flip runClientM clientEnv $ setCounter secureBrowserClient $ (m - 1)
   pure NoOp
 updateModel _ NoOp m = noEff m
 updateModel _ SayHelloWorld m = m <# do
@@ -139,14 +147,13 @@ updateModel _ SayHelloWorld m = m <# do
 
 type instance AuthClientData AuthAccess = ByteString.ByteString
 
-addAuth :: ByteString.ByteString -> AuthenticatedRequest AuthAccess
-addAuth = flip mkAuthenticatedRequest (\v -> addHeader hAuthorization ("Bearer " <> ByteString.unpack v))
+addNoAuth :: AuthenticatedRequest AuthAccess
+addNoAuth = mkAuthenticatedRequest undefined (const id)
 
-securedClient :: SecuredApi (AsClientT ClientM)
-securedClient =
-  -- Hardcoded auth header, we'd probably want to get this from a cookie.
-  secured API.client
-    (addAuth "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJlbWFpbCI6ImZvb0BiYXIuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWV9.pV7R4m7Jo0hvWKVRJsTYrggTuYNZ1H0HP6kTpwagzEE")
+-- | The browser will send the auth cookie, we don't need to
+secureBrowserClient :: SecuredApi (AsClientT ClientM)
+secureBrowserClient =
+  secured API.client addNoAuth
 
 -- | Constructs a virtual DOM from a model
 viewModel :: Model -> View Action

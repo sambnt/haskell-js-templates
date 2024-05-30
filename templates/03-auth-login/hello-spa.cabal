@@ -64,6 +64,8 @@ executable hello-backend
     buildable: False
   hs-source-dirs:
     src/backend
+  ghc-options:
+    -threaded
   build-depends:
       base < 5
     , aeson
@@ -92,8 +94,8 @@ executable hello-backend
 
 executable hello-frontend
   main-is:
-    -- Main.hs
-    Routed.hs
+    Main.hs
+    -- Routed.hs
   if !impl(ghcjs) && !arch(javascript) && !flag(jsaddle)
     buildable: False
   else

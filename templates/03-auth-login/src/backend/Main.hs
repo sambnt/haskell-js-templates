@@ -230,7 +230,6 @@ authHandler db = mkAuthHandler $ \req -> do
         _ ->
           pure Nothing
 
-
 getAuthCookieFromRequest :: Request -> Maybe OpaqueCode
 getAuthCookieFromRequest req =
   fmap T.decodeUtf8 . getAuthCookie =<< lookup "Cookie" (requestHeaders req)
@@ -276,8 +275,9 @@ main = do
       authHandler db -- @AuthUser
       :. EmptyContext
 
-    corsPolicy = simpleCorsResourcePolicy{
-      corsOrigins = Nothing,
+    corsPolicy = simpleCorsResourcePolicy {
+      -- Allow Credentials from localhost
+      corsOrigins = Just (["http://localhost:8000"], True),
       corsMethods = simpleMethods,
       corsRequestHeaders = simpleHeaders <> ["Content-Type", "Authorization"]
     }
