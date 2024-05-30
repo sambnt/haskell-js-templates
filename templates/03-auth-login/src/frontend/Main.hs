@@ -82,6 +82,7 @@ main = do
                               , baseUrlPort = 8081
                               , baseUrlPath = ""
                               }
+                  -- Ensure we set xhr.withCredentials to true, so cookies are sent
                   , fixUpXhr = js_setWithCredentials
                   }
 

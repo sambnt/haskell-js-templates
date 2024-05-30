@@ -276,7 +276,7 @@ main = do
       :. EmptyContext
 
     corsPolicy = simpleCorsResourcePolicy {
-      -- Allow Credentials from localhost
+      -- Allow Credentials from this origin, we can't use *
       corsOrigins = Just (["http://localhost:8000"], True),
       corsMethods = simpleMethods,
       corsRequestHeaders = simpleHeaders <> ["Content-Type", "Authorization"]
