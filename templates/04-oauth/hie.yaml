@@ -1,0 +1,12 @@
+# Configuration for haskell-language-server.
+
+cradle:
+  cabal:
+    # NOTE: The hello executable is not buildable unless using the JS backend
+    # (see cabal file) so it won't be built by haskell-language-server.
+    # - path: "./src/hello.hs"
+    #   component: "exe:hello"
+    - path: "./src/common"
+      component: "lib:hello-spa"
+    - path: "./src/backend"
+      component: "exe:hello-backend"

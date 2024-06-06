@@ -1,0 +1,100 @@
+cabal-version:      3.0
+name:               hello-spa
+version:            0.0.0.1
+license:            MIT
+license-file:       LICENSE
+copyright:          (c) Samuel Evans-Powell
+author:             Samuel Evans-Powell
+maintainer:         Samuel Evans-Powell <sam@sambnt.io>
+bug-reports:        mailto:sam@sambnt.io
+homepage:           https://www.github.com/sambnt/haskell-spa
+synopsis:           An example Haskell front-end/back-end package
+build-type:         Simple
+
+Description:
+  This is an example application containing both frontend code (using Miso and
+  the new GHC Javascript backend) and backend code written in Haskell. This
+  package is meant to provide a good starting point for writing Haskell web
+  applications. Please submit any suggestions and improvements.
+
+flag jsaddle
+  manual: True
+  default:
+    False
+  description:
+    Compile with JSaddle
+
+flag ios
+  manual: True
+  default:
+    False
+  description:
+    Cross compile to iOS
+
+-- library
+--   hs-source-dirs:
+--     src/common
+--   build-depends:
+--       base < 5
+--     , aeson
+--     , servant
+--     , containers
+--     , servant-client-core
+--     , text
+--     , network-uri
+--     , mtl
+--     , bytestring
+--     , uri-bytestring
+--     -- ?
+--     , servant-server
+--     , exceptions
+--     , stm
+--     , hoauth2
+--     , cookie
+--   if impl(ghcjs) || arch(javascript)
+--     build-depends:
+--       ghcjs-dom
+--     js-sources:
+--       jsbits/crypto.js
+--   exposed-modules:
+--     Common
+
+executable hello-backend
+  main-is:
+    Main.hs
+  if impl(ghcjs) || arch(javascript) || flag(jsaddle)
+    buildable: False
+  hs-source-dirs:
+    src/backend
+  ghc-options:
+    -threaded
+  build-depends:
+      base < 5
+    , aeson
+    , servant
+    , servant-server
+    , wai
+    , wai-cors
+    , cryptonite
+    , memory
+    , uri-bytestring
+    , optparse-applicative
+    , warp
+    , http-client
+    , jose
+    , hoauth2
+    , base16-bytestring
+    , http-client-tls
+    , http-types
+    , entropy
+    , text
+    , stm
+    , mtl
+    -- , hello-spa
+    , containers
+    , microlens
+    , bytestring
+    , base64-bytestring
+    , utf8-string
+    , exceptions
+    , cookie
