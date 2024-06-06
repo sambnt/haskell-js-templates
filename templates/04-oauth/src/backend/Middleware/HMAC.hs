@@ -36,7 +36,7 @@ hmacVerify cfg app r respond = do
       keyBytes = cfgHMACSecretKey cfg
 
   case modifyCookies (hmacVerifyCookies keyBytes cookieNames) reqHdrs of
-    Left err -> do
+    Left err ->
       respond $
         responseLBS status400 [] (ByteStringLazy.fromStrict $ T.encodeUtf8 err)
     Right newReqHdrs -> do

@@ -15,9 +15,6 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Base16 as Base16
 
-type CookieName = Text
-type HMACSecret = ByteString
-
 data ConfigCSRF = ConfigCSRF
   { cfgCSRFCookie :: ByteString
   , cfgCSRFHeader :: ByteString
