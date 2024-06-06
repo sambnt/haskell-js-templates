@@ -2,18 +2,25 @@
 
 module Main where
 
-import Config (parseConfig, cfgHMAC)
+import Config (parseConfig, cfgHMAC, cfgCSRF)
 import Middleware.HMAC (hmacVerify)
+import Middleware.CSRF (csrfProtect)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai (Application, responseLBS, requestHeaders)
 import Network.HTTP.Types (status200)
 import Control.Monad.IO.Class (liftIO)
 
+main :: IO ()
 main = do
   cfg <- parseConfig
   run 8081
+    -- First verify HMAC cookies
     $ hmacVerify (cfgHMAC cfg)
-    $ logRequestHeaders
+    -- Then protect against CSRF (depends on HMAC verification happening first
+    -- to be safe)
+    $ csrfProtect (cfgCSRF cfg)
+    -- TODO: Move a cookie into the Authorization header
+    -- Then run the app
     $ \req respond -> respond $ responseLBS status200 [] "Hello world!"
   print cfg
 

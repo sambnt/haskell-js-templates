@@ -26,9 +26,11 @@ module Config where
 
 import Config.HMAC (ConfigHMAC, envConfigHMAC, pConfigHMAC)
 import Options.Applicative (Parser, execParser, fullDesc, header, helper, info, progDesc, (<**>))
+import Config.CSRF (ConfigCSRF, pConfigCSRF)
 
 data Config = Config
   { cfgHMAC :: ConfigHMAC
+  , cfgCSRF :: ConfigCSRF
   }
   deriving (Eq, Show)
 
@@ -36,7 +38,7 @@ parseConfig :: IO Config
 parseConfig = do
   hmacSecret <- envConfigHMAC
   let pFinal :: Parser Config
-      pFinal = Config <$> pConfigHMAC hmacSecret
+      pFinal = Config <$> pConfigHMAC hmacSecret <*> pConfigCSRF
       opts =
         info
           (pFinal <**> helper)

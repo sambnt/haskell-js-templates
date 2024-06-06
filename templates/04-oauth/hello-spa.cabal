@@ -77,6 +77,7 @@ executable hello-backend
     , wai-cors
     , cryptonite
     , memory
+    , case-insensitive
     , uri-bytestring
     , optparse-applicative
     , warp
