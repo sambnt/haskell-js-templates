@@ -45,6 +45,8 @@ library
     , mtl
     , bytestring
     , uri-bytestring
+    -- ?
+    , servant-server
     , exceptions
     , stm
     , hoauth2
@@ -76,6 +78,7 @@ executable hello-backend
     , uri-bytestring
     , warp
     , http-client
+    , jose
     , hoauth2
     , http-client-tls
     , http-types

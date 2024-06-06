@@ -42,67 +42,32 @@ import Control.Concurrent.STM (TVar)
 import Control.Monad.Catch (MonadThrow, try)
 import qualified Control.Concurrent.STM as STM
 import Servant.Client.Generic (AsClientT, genericClient)
+import Servant.Server.Experimental.Auth (AuthServerData)
+import Servant.Client.Core.Auth (AuthClientData)
 
 #if defined(ghcjs_HOST_OS)
 import qualified GHCJS.DOM.Types as DOM
 #endif
 
-type OpaqueCode = Text
-
-data AuthInputs = AuthInputs { authOpaque :: Maybe OpaqueCode
-                             , authCode   :: Maybe Text
-                             , authNonce  :: Maybe Text
-                             }
-
-data AuthStateCompleted = AuthStateCompleted { authStateCompletedIdToken      :: Text
-                                             , authStateCompletedAccessToken  :: Text
-                                             , authStateCompletedRefreshToken :: Text
-                                             -- auth user?
-                                             }
-
-data AuthInfo = AuthInfo { authIdToken      :: Text
-                         , authAccessToken  :: Text
-                         , authRefreshToken :: Text
-                         -- , authUser?
-                         }
-
-data AuthState = InFlight OpaqueCode
-               | Done OAuth.OAuth2Token
-               deriving (Eq, Show)
-
-data AuthKey = Cookie OpaqueCode
-             | Nonce Text
-  deriving (Eq, Ord, Show)
-
-data Database = Database
-  { dbCounter :: TVar Int
-  , dbAuth :: TVar (Map AuthKey AuthState)
-  }
-
-getAuthState :: Database -> AuthKey -> IO (Maybe AuthState)
-getAuthState db k = do
-  authStateMap <- STM.readTVarIO (dbAuth db)
-  pure $ Map.lookup k authStateMap
--- getAuthState _ (AuthInputs Nothing _ _) =
---   pure Nothing
--- getAuthState db (AuthInputs (Just opaqueCode) _ _) = do
-    -- Nothing -> pure Nothing
-    -- Just (InFlight nonce') ->
-    --   if nonce /= nonce'
-    --   then error "Incorrect state returned from auth provider"
-    --   else
-
 parseURI' :: ByteString.ByteString -> URIRef Absolute
 parseURI' = either (\err -> error $ show err) id . parseURI laxURIParserOptions
 
-writeAuthState :: Database -> AuthKey -> AuthState -> IO ()
-writeAuthState db k newState =
-  STM.atomically $ STM.modifyTVar (dbAuth db) (Map.insert k newState)
-
 data Cognito = Cognito deriving (Eq, Show)
+
+-- Uses OAuth "sub" field as user identifier. Don't use email because of GDPR.
+newtype UserSub = UserSub Text
+  deriving (Eq, Show)
 
 -- | Users must provide an opaque access token to authenticate.
 type AuthAccess = AuthProtect "access-token'"
+-- | Once the server receives this value, we have already done processing to
+-- confirm that the JWT we received was valid, and the CSRF header was valid.
+type instance AuthServerData AuthAccess = Maybe ()
+-- | The client doesn't have to explicitly include anything in the request, we
+-- read the access token and the csrf token from the cookies. POST requests
+-- require a "X-example-CSRF" header, but we include that via the clientEnv,
+-- rather than explicitly in the API.
+type instance AuthClientData AuthAccess = ()
 
 newtype App a = App (IdentityT IO a)
   deriving newtype (Functor, Applicative, Monad, MonadIO, MonadFail, MonadThrow)
@@ -128,13 +93,13 @@ data Api mode = Api
     :: mode
     :- "counter"
     :> Get '[JSON] Int
-  , login
-    :: mode
-    :- "login"
-    :> Header "Cookie" Text
-    :> QueryParam "code" Text
-    :> QueryParam "state" Text
-    :> Get '[JSON] OAuth.OAuth2Token
+  -- , login
+  --   :: mode
+  --   :- "login"
+  --   :> Header "Cookie" Text
+  --   :> QueryParam "code" Text
+  --   :> QueryParam "state" Text
+  --   :> Get '[JSON] OAuth.OAuth2Token
   , secured
     :: mode
     :- AuthAccess

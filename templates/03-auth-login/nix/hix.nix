@@ -29,4 +29,6 @@
   shell.tools.cabal = "latest";
   shell.tools.hlint = "latest";
   shell.tools.haskell-language-server = "latest";
+  # shell.tools.cabalWrapped = "latest";
+  shell.nativeBuildInputs = [ pkgs.buildPackages.cabalWrapped ];
 }

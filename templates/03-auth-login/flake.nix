@@ -3,7 +3,10 @@
   inputs.haskellNix.url = "github:input-output-hk/haskell.nix";
   inputs.nixpkgs.follows = "haskellNix/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
-  outputs = { self, nixpkgs, flake-utils, haskellNix }:
+  inputs.iohkNix.url = "github:input-output-hk/iohk-nix";
+  inputs.iohkNix.inputs.nixpkgs.follows = "nixpkgs";
+
+  outputs = { self, nixpkgs, flake-utils, haskellNix, iohkNix }:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -14,7 +17,9 @@
     in
       flake-utils.lib.eachSystem supportedSystems (system:
       let
-        overlays = [ haskellNix.overlay
+        overlays = [
+          haskellNix.overlay
+          iohkNix.overlays.utils
           (final: _prev: {
             hixProject =
               final.haskell-nix.hix.project {

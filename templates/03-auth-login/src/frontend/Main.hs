@@ -146,8 +146,6 @@ updateModel _ NoOp m = noEff m
 updateModel _ SayHelloWorld m = m <# do
   liftIO (putStrLn "Hello World") >> pure NoOp
 
-type instance AuthClientData AuthAccess = ByteString.ByteString
-
 addNoAuth :: AuthenticatedRequest AuthAccess
 addNoAuth = mkAuthenticatedRequest undefined (const id)
 
