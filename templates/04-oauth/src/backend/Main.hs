@@ -20,7 +20,7 @@ main = do
     -- Then protect against CSRF (depends on HMAC verification happening first
     -- to be safe)
     $ csrfProtect (cfgCSRF cfg)
-    -- Move a cookie into the Authorization header
+    -- Move auth cookie into the Authorization header
     $ authCookieToHeader (cfgAuthorization cfg)
     $ logRequestHeaders
     -- Then run the app

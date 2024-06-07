@@ -7,11 +7,17 @@
     p.ghcjs
   ]);
 
+  cabalProjectLocal = ''
+    if arch(javascript)
+      extra-packages: ghci
+  '';
+
   modules = [
     ({pkgs,config,...}: {
       packages.entropy.package.buildType = pkgs.lib.mkForce "Simple";
+      # packages.miso.flags.jsaddle = true;
     })
-    # ({pkgs,lib,config,...}: lib.optionalAttrs (pkgs.stdenv.buildPlatform.isGhcjs) {
+    # ({pkgs,lib,config,...}: lib.optionalAttrs (stdenv.hostPlatform.isGhcjs) {
     ({pkgs,lib,config,...}: lib.optionalAttrs (true) {
        # This is necessary because
        # https://github.com/NixOS/nixpkgs/blob/d474c87aff678090f108a23f0b3e521ae0d4e034/pkgs/development/libraries/gnu-config/default.nix
@@ -30,6 +36,5 @@
   shell.tools.hlint = "latest";
   shell.tools.haskell-language-server = "latest";
   shell.tools.hoogle = "latest";
-  # shell.tools.cabalWrapped = "latest";
-  shell.nativeBuildInputs = [ pkgs.buildPackages.cabalWrapped ];
+  # shell.nativeBuildInputs = [ pkgs.buildPackages.cabalWrapped ];
 }

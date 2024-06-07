@@ -4,6 +4,9 @@ with-compiler: ghc-9.8.2
 packages:
     ./.
 
+optional-packages:
+    /tmp/tmp.ZTyJes8At3/network
+
 allow-newer:
    *:network
 
@@ -42,11 +45,11 @@ source-repository-package
     subdir:
       basement
 
-source-repository-package
-    type: git
-    location: https://github.com/sambnt/network.git
-    tag: 0aa1d511bf034c1c33e0363c39779b2ce62dac50
-    --sha256: 0pivj93s1q9yrbl2gv9cdrn2rqvgd5j8krvaq00y5dmrpp3flm3g
+-- source-repository-package
+--     type: git
+--     location: https://github.com/sambnt/network.git
+--     tag: 0aa1d511bf034c1c33e0363c39779b2ce62dac50
+--     --sha256: 0pivj93s1q9yrbl2gv9cdrn2rqvgd5j8krvaq00y5dmrpp3flm3g
 
 source-repository-package
     type: git

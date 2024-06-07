@@ -99,3 +99,51 @@ executable hello-backend
     , utf8-string
     , exceptions
     , cookie
+
+executable hello-frontend
+  main-is:
+    Main.hs
+  if !impl(ghcjs) && !arch(javascript) && !flag(jsaddle)
+    buildable: False
+  else
+    if flag(jsaddle)
+      build-depends:
+        jsaddle
+    ghcjs-options:
+      -dedupe
+    cpp-options:
+      -DGHCJS_BROWSER
+    hs-source-dirs:
+      src/frontend
+    build-depends:
+        base < 5
+      , aeson
+      , containers
+      , miso
+      , jsaddle
+      , transformers
+      , bytestring
+      , servant-client-core
+      , http-types
+      , servant-jsaddle
+      , ghcjs-base
+      , base64-bytestring
+      , base16-bytestring
+      , text
+      , hoauth2
+      , uri-bytestring
+      , ghcjs-dom-javascript
+      , network-uri
+      , servant
+    default-language:
+      Haskell2010
+    if flag(ios)
+      cpp-options:
+        -DIOS
+      ghc-options:
+        -threaded
+      build-depends:
+        jsaddle-wkwebview
+    else
+      build-depends:
+        jsaddle-warp
