@@ -28,11 +28,13 @@ import Config.HMAC (ConfigHMAC, envConfigHMAC, pConfigHMAC)
 import Options.Applicative (Parser, execParser, fullDesc, header, helper, info, progDesc, (<**>))
 import Config.CSRF (ConfigCSRF, pConfigCSRF)
 import Config.Authorization (ConfigAuthorization, pConfigAuthorization)
+import Config.JWT (ConfigJWT, pConfigJWT)
 
 data Config = Config
   { cfgHMAC :: ConfigHMAC
   , cfgCSRF :: ConfigCSRF
   , cfgAuthorization :: ConfigAuthorization
+  , cfgJWT :: ConfigJWT
   }
   deriving (Eq, Show)
 
@@ -40,7 +42,11 @@ parseConfig :: IO Config
 parseConfig = do
   hmacSecret <- envConfigHMAC
   let pFinal :: Parser Config
-      pFinal = Config <$> pConfigHMAC hmacSecret <*> pConfigCSRF <*> pConfigAuthorization
+      pFinal =
+        Config <$> pConfigHMAC hmacSecret
+               <*> pConfigCSRF
+               <*> pConfigAuthorization
+               <*> pConfigJWT
       opts =
         info
           (pFinal <**> helper)

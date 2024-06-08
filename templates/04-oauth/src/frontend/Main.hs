@@ -36,7 +36,7 @@ import Servant.Links ()
 
 -- | TODO: Load config
 oauthBaseUrl = "http://localhost:8082"
-apiBaseUrl = "http://api.example.com:8081"
+apiBaseUrl = "http://localhost:8081"
 
 -- | Type synonym for an application model
 data AuthenticationStatus = Init
@@ -47,6 +47,7 @@ data AuthenticationStatus = Init
 
 data Model = Model { currentURI :: URI
                    , authStatus :: AuthenticationStatus
+                   , privateInfo :: Maybe MisoString
                    }
   deriving (Eq, Show)
 
@@ -57,6 +58,8 @@ data Action
   | SetAuthentication (Either MisoString AuthenticateResponse)
   | StartAuthentication
   | DoAuthRedirect (Either MisoString URI)
+  | GetPrivateInfo
+  | SetPrivateInfo (Either MisoString MisoString)
   | HandleURI URI
   | ChangeURI URI
   deriving (Show, Eq)
@@ -74,7 +77,7 @@ main :: IO ()
 main = runApp $ do
     currentURI <- getCurrentURI
     startApp $
-      App { model = Model { currentURI = currentURI, authStatus = Init }
+      App { model = Model { currentURI = currentURI, authStatus = Init, privateInfo = Nothing }
           , initialAction = CheckAuthentication -- initial action to be executed on application load
           , update = updateModel
           , view = viewModel
@@ -113,15 +116,24 @@ updateModel (DoAuthRedirect result) m =
     Right u  -> m <# do
       assignURI (toMisoString $ show u)
       pure NoOp
+updateModel GetPrivateInfo m = m <# do
+  SetPrivateInfo <$> getPrivateInfo
+updateModel (SetPrivateInfo result) m =
+  case result of
+    Left err -> noEff $ m { privateInfo = Just err }
+    Right info -> noEff $ m { privateInfo = Just info }
 updateModel NoOp m = noEff m
-
 
 -- | Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
 viewModel m =
   case authStatus m of
     Init                    -> div_ [] [ text "You are being authenticated" ]
-    Authenticated           -> div_ [] [ text "You are authenticated" ]
+    Authenticated           ->
+      div_ []
+        [ text "You are authenticated"
+        , button_ [ onClick GetPrivateInfo ] [ text "Get" ]
+        ]
     NotAuthenticated        ->
       div_ []
         [ text "You are NOT authenticated"
@@ -163,6 +175,22 @@ startAuth = do
   result <- mkXHRRequestJSON req
   case result of
     Left err -> pure $ Left $ "OAuth agent returned error: '" <> err <> "'."
+    Right resp -> pure $ Right resp
+
+getPrivateInfo :: IO (Either MisoString MisoString)
+getPrivateInfo = do
+  let
+    req = XHR.Request { reqMethod = XHR.GET
+                      , reqURI = pack $ apiBaseUrl <> "/"
+                      , reqLogin = Nothing
+                      , reqHeaders = []
+                      , reqWithCredentials = True
+                      , reqData = XHR.NoData
+                      }
+
+  result <- mkXHRRequestJSON req
+  case result of
+    Left err -> pure $ Left $ "API returned error: '" <> err <> "'."
     Right resp -> pure $ Right resp
 
 data AuthRedirect =

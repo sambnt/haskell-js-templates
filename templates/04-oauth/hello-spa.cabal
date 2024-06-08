@@ -83,7 +83,6 @@ executable hello-backend
     , warp
     , http-client
     , jose
-    , hoauth2
     , base16-bytestring
     , http-client-tls
     , http-types
@@ -131,7 +130,6 @@ executable hello-frontend
       , base64-bytestring
       , base16-bytestring
       , text
-      , hoauth2
       , uri-bytestring
       , ghcjs-dom-javascript
       , network-uri
