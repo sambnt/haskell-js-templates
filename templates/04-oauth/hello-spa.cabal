@@ -120,6 +120,7 @@ executable hello-frontend
       , aeson
       , containers
       , miso
+      , either
       , jsaddle
       , transformers
       , bytestring
