@@ -10,3 +10,5 @@ cradle:
       component: "lib:hello-spa"
     - path: "./src/backend"
       component: "exe:hello-backend"
+    - path: "./src/frontend"
+      component: "exe:hello-frontend"

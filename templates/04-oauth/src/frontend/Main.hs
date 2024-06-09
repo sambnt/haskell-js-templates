@@ -30,9 +30,13 @@ import           Network.WebSockets
 import           Control.Monad.IO.Class
 import qualified Control.Concurrent as C
 import Network.URI (URI)
-import Data.Proxy ()
-import Servant.API ()
-import Servant.Links ()
+
+import Servant.Client.JSaddle
+import Servant.Client.Core (AuthenticatedRequest, mkAuthenticatedRequest)
+import qualified GHCJS.DOM.XMLHttpRequest          as JS
+import Api (AuthAccess, SecuredApi)
+import qualified Api as Api
+import qualified GHCJS.DOM.Types as DOM
 
 -- | TODO: Load config
 oauthBaseUrl = "http://localhost:8082"
@@ -48,6 +52,7 @@ data AuthenticationStatus = Init
 data Model = Model { currentURI :: URI
                    , authStatus :: AuthenticationStatus
                    , privateInfo :: Maybe MisoString
+                   , counter :: Int
                    }
   deriving (Eq, Show)
 
@@ -62,6 +67,8 @@ data Action
   | SetPrivateInfo (Either MisoString MisoString)
   | HandleURI URI
   | ChangeURI URI
+  | AddOne
+  | SubtractOne
   deriving (Show, Eq)
 
 #ifndef ghcjs_HOST_OS
@@ -72,26 +79,42 @@ runApp :: IO () -> IO ()
 runApp app = app
 #endif
 
+foreign import javascript unsafe
+  "((x) => { x.withCredentials = true; })"
+  js_setWithCredentials :: JS.XMLHttpRequest -> DOM.DOM ()
+
 -- | Entry point for a miso application
 main :: IO ()
 main = runApp $ do
-    currentURI <- getCurrentURI
-    startApp $
-      App { model = Model { currentURI = currentURI, authStatus = Init, privateInfo = Nothing }
-          , initialAction = CheckAuthentication -- initial action to be executed on application load
-          , update = updateModel
-          , view = viewModel
-          , events = defaultEvents
-          , subs = [ uriSub HandleURI ]
-          , mountPoint = Nothing
-          , logLevel = Off
-          }
+  let (Just clientBaseUrl) = parseBaseUrl apiBaseUrl
+      clientEnv = ClientEnv { baseUrl = clientBaseUrl
+                            -- Ensure we set xhr.withCredentials to true, so cookies are sent
+                            , fixUpXhr = js_setWithCredentials
+                            }
+
+  (Right initialCount) <- flip runClientM clientEnv $ Api.getCounter Api.client
+  currentURI <- getCurrentURI
+
+  startApp $
+    App { model = Model { currentURI = currentURI
+                        , authStatus = Init
+                        , privateInfo = Nothing
+                        , counter = initialCount
+                        }
+        , initialAction = CheckAuthentication -- initial action to be executed on application load
+        , update = updateModel clientEnv
+        , view = viewModel
+        , events = defaultEvents
+        , subs = [ uriSub HandleURI ]
+        , mountPoint = Nothing
+        , logLevel = Off
+        }
 
 -- | Updates model, optionally introduces side effects
-updateModel :: Action -> Model -> Effect Action Model
-updateModel CheckAuthentication m = m <# do
+updateModel :: ClientEnv -> Action -> Model -> Effect Action Model
+updateModel _ CheckAuthentication m = m <# do
   SetAuthentication <$> getAuthState (currentURI m)
-updateModel (SetAuthentication result) m =
+updateModel _ (SetAuthentication result) m =
   case result of
     Left err ->
       (m { authStatus = AuthenticationError err }) <# do
@@ -104,25 +127,31 @@ updateModel (SetAuthentication result) m =
       else
         (m { authStatus = Authenticated }) <# do
           pure $ ChangeURI ((currentURI m) { uriQuery = ""} )
-updateModel (HandleURI u) m = noEff $ m { currentURI = u }
-updateModel (ChangeURI u) m = m <# do
+updateModel _ (HandleURI u) m = noEff $ m { currentURI = u }
+updateModel _ (ChangeURI u) m = m <# do
   pushURI u
   pure NoOp
-updateModel StartAuthentication m = m <# do
+updateModel _ StartAuthentication m = m <# do
   (DoAuthRedirect . fmap authorizationRequestUrl) <$> startAuth
-updateModel (DoAuthRedirect result) m =
+updateModel _ (DoAuthRedirect result) m =
   case result of
     Left err -> noEff $ m { authStatus = AuthenticationError err }
     Right u  -> m <# do
       assignURI (toMisoString $ show u)
       pure NoOp
-updateModel GetPrivateInfo m = m <# do
+updateModel _ GetPrivateInfo m = m <# do
   SetPrivateInfo <$> getPrivateInfo
-updateModel (SetPrivateInfo result) m =
+updateModel _ (SetPrivateInfo result) m =
   case result of
     Left err -> noEff $ m { privateInfo = Just err }
     Right info -> noEff $ m { privateInfo = Just info }
-updateModel NoOp m = noEff m
+updateModel clientEnv AddOne m = (m { counter = (counter m + 1) }) <# do
+  flip runClientM clientEnv $ Api.setCounter secureBrowserClient $ (counter m + 1)
+  pure NoOp
+updateModel clientEnv SubtractOne m = (m { counter = (counter m - 1) }) <# do
+  flip runClientM clientEnv $ Api.setCounter secureBrowserClient $ (counter m - 1)
+  pure NoOp
+updateModel _ NoOp m = noEff m
 
 -- | Constructs a virtual DOM from a model
 viewModel :: Model -> View Action
@@ -133,10 +162,16 @@ viewModel m =
       div_ []
         ([ text "You are authenticated"
         , button_ [ onClick GetPrivateInfo ] [ text "Get" ]
-        ] <> maybe [] (\i -> [ text i ]) (privateInfo m))
+        ] <> maybe [] (\i -> [ text i ]) (privateInfo m)
+        <> [ button_ [ onClick AddOne ] [ text "+" ]
+           , text (ms $ counter m)
+           , button_ [ onClick SubtractOne ] [ text "-" ]
+           ]
+        )
     NotAuthenticated        ->
       div_ []
         [ text "You are NOT authenticated"
+        , text $ "The current count is: " <> ms (counter m)
         , button_ [ onClick StartAuthentication ] [ text "Sign In" ]
         ]
     (AuthenticationError e) -> div_ [] [ text $ "There was an error: '" <> e <> "'." ]
@@ -247,3 +282,12 @@ assignURI :: MisoString -> JSM ()
 assignURI uri = do
   _ <- getLocation # ("assign" :: String) $ [uri]
   pure ()
+
+
+addNoAuth :: AuthenticatedRequest AuthAccess
+addNoAuth = mkAuthenticatedRequest undefined (const id)
+
+-- | The browser will send the auth cookie, we don't need to
+secureBrowserClient :: SecuredApi (AsClientT ClientM)
+secureBrowserClient =
+  Api.secured Api.client addNoAuth

@@ -31,33 +31,25 @@ flag ios
   description:
     Cross compile to iOS
 
--- library
---   hs-source-dirs:
---     src/common
---   build-depends:
---       base < 5
---     , aeson
---     , servant
---     , containers
---     , servant-client-core
---     , text
---     , network-uri
---     , mtl
---     , bytestring
---     , uri-bytestring
---     -- ?
---     , servant-server
---     , exceptions
---     , stm
---     , hoauth2
---     , cookie
---   if impl(ghcjs) || arch(javascript)
---     build-depends:
---       ghcjs-dom
---     js-sources:
---       jsbits/crypto.js
---   exposed-modules:
---     Common
+library
+  hs-source-dirs:
+    src/common
+  build-depends:
+      base < 5
+    , aeson
+    , servant
+    , containers
+    , servant-client-core
+    , text
+    , network-uri
+    , mtl
+    , bytestring
+    , uri-bytestring
+    , exceptions
+    , stm
+    , cookie
+  exposed-modules:
+    Api
 
 executable hello-backend
   main-is:
@@ -79,36 +71,38 @@ executable hello-backend
     Middleware.CSRF
     Middleware.HMAC
     JWT
+    Server
   build-depends:
       base < 5
     , aeson
-    , servant
-    , servant-server
-    , wai
-    , wai-cors
-    , cryptonite
-    , memory
-    , case-insensitive
-    , uri-bytestring
-    , optparse-applicative
-    , warp
-    , http-client
-    , jose
     , base16-bytestring
+    , base64-bytestring
+    , bytestring
+    , case-insensitive
+    , containers
+    , cookie
+    , cryptonite
+    , entropy
+    , exceptions
+    , hello-spa
+    , http-client
     , http-client-tls
     , http-types
-    , entropy
-    , text
-    , stm
-    , mtl
-    -- , hello-spa
-    , containers
+    , jose
+    , memory
     , microlens
-    , bytestring
-    , base64-bytestring
+    , mtl
+    , optparse-applicative
+    , servant
+    , servant-client
+    , servant-server
+    , stm
+    , text
+    , uri-bytestring
     , utf8-string
-    , exceptions
-    , cookie
+    , wai
+    , wai-cors
+    , warp
 
 executable hello-frontend
   main-is:
@@ -136,6 +130,7 @@ executable hello-frontend
       , bytestring
       , servant-client-core
       , http-types
+      , hello-spa
       , servant-jsaddle
       , ghcjs-base
       , base64-bytestring

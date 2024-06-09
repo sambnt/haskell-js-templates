@@ -20,14 +20,19 @@ import JWT (newJWKSCache, verifyJWT)
 import qualified Crypto.JWT as JOSE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Control.Concurrent.STM as STM
+import Servant.Server.Generic (genericServeTWithContext)
+import Server (appToHandler, authHandler, Database (Database), api)
+import Servant (Context(EmptyContext, (:.)))
+import Api ()
 
 main :: IO ()
 main = do
   cfg <- parseConfig
 
   jwksCache <- newJWKSCache
-  manager <- newTlsManager
-
+  manager   <- newTlsManager
+  counter   <- STM.newTVarIO 0
 
   let
     allowedOrigins = fmap T.encodeUtf8 . cfgCORSOrigins $ cfgCORS cfg
@@ -37,6 +42,9 @@ main = do
       corsMethods = simpleMethods,
       corsRequestHeaders = simpleHeaders <> ["Content-Type", "Authorization"]
     }
+    ctx =
+      authHandler (cfgJWT cfg) manager jwksCache
+      :. EmptyContext
 
   run 8081
     $ cors (const $ Just corsPolicy)
@@ -49,13 +57,13 @@ main = do
     $ authCookieToHeader (cfgAuthorization cfg)
     $ logRequestHeaders
     -- Then run the app
-    $ \req respond -> do
-      let (Just auth) = lookup "Authorization" $ requestHeaders req
-          (Right jwt :: Either JOSE.JWTError JOSE.SignedJWT) = JOSE.decodeCompact $ ByteStringLazy.fromStrict auth
-      ((Just claimsSet) :: Maybe JOSE.ClaimsSet) <-
-        verifyJWT manager (cfgJWT cfg) jwksCache jwt
-      respond $ responseLBS status200 [] (ByteStringLazy.fromStrict $ T.encodeUtf8 $ T.pack $ show claimsSet)
-  print cfg
+    -- $ \req respond -> do
+      -- let (Just auth) = lookup "Authorization" $ requestHeaders req
+      --     (Right jwt :: Either JOSE.JWTError JOSE.SignedJWT) = JOSE.decodeCompact $ ByteStringLazy.fromStrict auth
+      -- ((Just claimsSet) :: Maybe JOSE.ClaimsSet) <-
+      --   verifyJWT manager (cfgJWT cfg) jwksCache jwt
+      -- respond $ responseLBS status200 [] (ByteStringLazy.fromStrict $ T.encodeUtf8 $ T.pack $ show claimsSet)
+    $ genericServeTWithContext appToHandler (api $ Database counter) ctx
 
 logRequestHeaders :: Application -> Application
 logRequestHeaders incoming request outgoing = do
