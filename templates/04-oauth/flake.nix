@@ -33,6 +33,7 @@
         flake = pkgs.hixProject.flake {};
       in nixpkgs.lib.recursiveUpdate flake {
         legacyPackages = pkgs;
+        hix = pkgs.hixProject;
         packages = {
           hello-frontend-js = flake.packages."javascript-unknown-ghcjs:hello-spa:exe:hello-frontend".overrideDerivation (drv: {
             # The default builder doesn't export the generated html/javascript

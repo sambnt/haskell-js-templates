@@ -4,9 +4,6 @@ with-compiler: ghc-9.8.2
 packages:
     ./.
 
-optional-packages:
-    /tmp/tmp.ZTyJes8At3/network
-
 allow-newer:
    *:network
 
@@ -45,11 +42,11 @@ source-repository-package
     subdir:
       basement
 
--- source-repository-package
---     type: git
---     location: https://github.com/sambnt/network.git
---     tag: 0aa1d511bf034c1c33e0363c39779b2ce62dac50
---     --sha256: 0pivj93s1q9yrbl2gv9cdrn2rqvgd5j8krvaq00y5dmrpp3flm3g
+source-repository-package
+    type: git
+    location: https://github.com/sambnt/network.git
+    tag: 0aa1d511bf034c1c33e0363c39779b2ce62dac50
+    --sha256: 0pivj93s1q9yrbl2gv9cdrn2rqvgd5j8krvaq00y5dmrpp3flm3g
 
 source-repository-package
     type: git
@@ -64,19 +61,3 @@ source-repository-package
     location: https://github.com/sambnt/hs-memory.git
     tag: fc1bd20b1a463c977943c1fe694374f39ed34923
     --sha256: 0f1hqwas1nmdy7v8lnv4d1lp7kq22fx79w216da49f58dayxa0dp
-
--- source-repository-package
---     type: git
---     location: https://github.com/sambnt/hoauth2.git
---     tag: 1ab16289e41044638b4beb0bbaed0d85399455fa
---     --sha256: 0l4crn4yv50ibpz8k16vbv3qgfiayqxj8f0vwzk4q4ai3afj7w8n
---     subdir:
---       hoauth2
-
--- source-repository-package
---     type: git
---     location: https://github.com/sambnt/hoauth2.git
---     tag: 563dae1701594a35aae1e331604d9c1858335111
---     --sha256: 0dzzy1jrr00593sid6iihfjq9w896563gygw7bwcyykkk3rkpx31
---     subdir:
---       hoauth2

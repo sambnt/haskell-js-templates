@@ -36,5 +36,7 @@
   shell.tools.hlint = "latest";
   shell.tools.haskell-language-server = "latest";
   shell.tools.hoogle = "latest";
-  # shell.nativeBuildInputs = [ pkgs.buildPackages.cabalWrapped ];
+  shell.withHoogle = true;
+  shell.packages = ps: builtins.attrValues (pkgs.haskell-nix.haskellLib.selectProjectPackages ps);
+  shell.nativeBuildInputs = [ pkgs.buildPackages.cabalWrapped ];
 }
