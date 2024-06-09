@@ -3,10 +3,12 @@
 
 module Main where
 
-import Config (parseConfig, cfgHMAC, cfgCSRF, cfgAuthorization, cfgJWT)
+import Config (parseConfig, cfgHMAC, cfgCSRF, cfgAuthorization, cfgJWT, cfgCORS)
+import Config.CORS (cfgCORSOrigins)
 import Middleware.HMAC (hmacVerify)
 import Middleware.CSRF (csrfProtect)
 import Middleware.Authorization (authCookieToHeader)
+import Network.Wai.Middleware.Cors (CorsResourcePolicy (..), simpleCorsResourcePolicy, simpleMethods, simpleHeaders, cors)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai (Application, responseLBS, requestHeaders)
 import Network.HTTP.Types (status200)
@@ -26,7 +28,18 @@ main = do
   jwksCache <- newJWKSCache
   manager <- newTlsManager
 
+
+  let
+    allowedOrigins = fmap T.encodeUtf8 . cfgCORSOrigins $ cfgCORS cfg
+    corsPolicy = simpleCorsResourcePolicy {
+      -- Allow Credentials from this origin, we can't use *
+      corsOrigins = Just (allowedOrigins, True),
+      corsMethods = simpleMethods,
+      corsRequestHeaders = simpleHeaders <> ["Content-Type", "Authorization"]
+    }
+
   run 8081
+    $ cors (const $ Just corsPolicy)
     -- First verify HMAC cookies
     $ hmacVerify (cfgHMAC cfg)
     -- Then protect against CSRF (depends on HMAC verification happening first

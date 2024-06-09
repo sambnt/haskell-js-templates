@@ -29,12 +29,14 @@ import Options.Applicative (Parser, execParser, fullDesc, header, helper, info, 
 import Config.CSRF (ConfigCSRF, pConfigCSRF)
 import Config.Authorization (ConfigAuthorization, pConfigAuthorization)
 import Config.JWT (ConfigJWT, pConfigJWT)
+import Config.CORS (ConfigCORS, pConfigCORS)
 
 data Config = Config
-  { cfgHMAC :: ConfigHMAC
-  , cfgCSRF :: ConfigCSRF
+  { cfgHMAC          :: ConfigHMAC
+  , cfgCSRF          :: ConfigCSRF
   , cfgAuthorization :: ConfigAuthorization
-  , cfgJWT :: ConfigJWT
+  , cfgJWT           :: ConfigJWT
+  , cfgCORS          :: ConfigCORS
   }
   deriving (Eq, Show)
 
@@ -47,6 +49,7 @@ parseConfig = do
                <*> pConfigCSRF
                <*> pConfigAuthorization
                <*> pConfigJWT
+               <*> pConfigCORS
       opts =
         info
           (pFinal <**> helper)

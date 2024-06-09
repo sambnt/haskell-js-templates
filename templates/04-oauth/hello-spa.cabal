@@ -68,6 +68,17 @@ executable hello-backend
     src/backend
   ghc-options:
     -threaded
+  other-modules:
+    Config
+    Config.JWT
+    Config.HMAC
+    Config.Authorization
+    Config.CSRF
+    Config.CORS
+    Middleware.Authorization
+    Middleware.CSRF
+    Middleware.HMAC
+    JWT
   build-depends:
       base < 5
     , aeson

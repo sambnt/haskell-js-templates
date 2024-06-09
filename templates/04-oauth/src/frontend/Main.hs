@@ -131,9 +131,9 @@ viewModel m =
     Init                    -> div_ [] [ text "You are being authenticated" ]
     Authenticated           ->
       div_ []
-        [ text "You are authenticated"
+        ([ text "You are authenticated"
         , button_ [ onClick GetPrivateInfo ] [ text "Get" ]
-        ]
+        ] <> maybe [] (\i -> [ text i ]) (privateInfo m))
     NotAuthenticated        ->
       div_ []
         [ text "You are NOT authenticated"
@@ -188,10 +188,10 @@ getPrivateInfo = do
                       , reqData = XHR.NoData
                       }
 
-  result <- mkXHRRequestJSON req
+  result <- mkXHRRequest req
   case result of
     Left err -> pure $ Left $ "API returned error: '" <> err <> "'."
-    Right resp -> pure $ Right resp
+    Right resp -> pure $ Right (toMisoString resp)
 
 data AuthRedirect =
   -- TODO: authorization -> authentication

@@ -34,15 +34,16 @@ jwtValidationSettings cfg =
     (== fromString (T.unpack $ cfgIssuer cfg))
 
 data KidError = MalformedInput Text
+  deriving (Eq, Show)
 
 getKid :: SignedJWT -> Either KidError Text
 getKid jwt = do
   let bytes = ByteStringLazy.toStrict $ JOSE.encodeCompact jwt
       split = ByteString.break (== '.') >>> second (ByteString.drop 1)
       (hdr64, _) = split bytes
+      hdr = Base64.decodeLenient hdr64
 
       eKid = do
-        hdr <- Base64.decode hdr64
         keyMap <- Aeson.eitherDecode $ ByteStringLazy.fromStrict hdr
         case Aeson.lookup (fromString "kid") keyMap of
           (Just (Aeson.String kid)) -> Right kid
