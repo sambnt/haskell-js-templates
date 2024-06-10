@@ -5,6 +5,7 @@ module Main where
 
 import Config (parseConfig, cfgHMAC, cfgCSRF, cfgAuthorization, cfgJWT, cfgCORS)
 import Config.CORS (cfgCORSOrigins)
+import Config.CSRF (cfgCSRFHeader)
 import Middleware.HMAC (hmacVerify)
 import Middleware.CSRF (csrfProtect)
 import Middleware.Authorization (authCookieToHeader)
@@ -25,6 +26,8 @@ import Servant.Server.Generic (genericServeTWithContext)
 import Server (appToHandler, authHandler, Database (Database), api)
 import Servant (Context(EmptyContext, (:.)))
 import Api ()
+import Data.String (fromString)
+import qualified Data.CaseInsensitive as CI
 
 main :: IO ()
 main = do
@@ -40,7 +43,11 @@ main = do
       -- Allow Credentials from this origin, we can't use *
       corsOrigins = Just (allowedOrigins, True),
       corsMethods = simpleMethods,
-      corsRequestHeaders = simpleHeaders <> ["Content-Type", "Authorization"]
+      corsRequestHeaders = simpleHeaders
+        <> [ "Content-Type"
+           , "Authorization"
+           , CI.mk $ cfgCSRFHeader $ cfgCSRF cfg
+           ]
     }
     ctx =
       authHandler (cfgJWT cfg) manager jwksCache

@@ -15,7 +15,9 @@
   modules = [
     ({pkgs,config,...}: {
       packages.entropy.package.buildType = pkgs.lib.mkForce "Simple";
+
       # packages.miso.flags.jsaddle = true;
+      packages.hello-spa.flags.jsaddle = true;
     })
     # ({pkgs,lib,config,...}: lib.optionalAttrs (stdenv.hostPlatform.isGhcjs) {
     ({pkgs,lib,config,...}: lib.optionalAttrs (true) {

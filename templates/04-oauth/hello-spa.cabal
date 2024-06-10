@@ -50,6 +50,7 @@ library
     , cookie
   exposed-modules:
     Api
+    Api.OAuth
 
 executable hello-backend
   main-is:
@@ -107,48 +108,53 @@ executable hello-backend
 executable hello-frontend
   main-is:
     Main.hs
-  if !impl(ghcjs) && !arch(javascript) && !flag(jsaddle)
-    buildable: False
-  else
-    if flag(jsaddle)
-      build-depends:
-        jsaddle
-    ghcjs-options:
-      -dedupe
-    cpp-options:
-      -DGHCJS_BROWSER
-    hs-source-dirs:
-      src/frontend
+  -- if flag(jsaddle)
+  --   build-depends:
+  --       websockets
+  --     , warp
+  -- else
+  --   build-depends:
+  --       ghcjs-base
+  --     , ghcjs-dom-javascript
+  if !impl(ghcjs) && !arch(javascript)
     build-depends:
-        base < 5
-      , aeson
-      , containers
-      , miso
-      , either
-      , jsaddle
-      , transformers
-      , bytestring
-      , servant-client-core
-      , http-types
-      , hello-spa
-      , servant-jsaddle
-      , ghcjs-base
-      , base64-bytestring
-      , base16-bytestring
-      , text
-      , uri-bytestring
-      , ghcjs-dom-javascript
-      , network-uri
-      , servant
-    default-language:
-      Haskell2010
-    if flag(ios)
-      cpp-options:
-        -DIOS
-      ghc-options:
-        -threaded
-      build-depends:
-        jsaddle-wkwebview
-    else
-      build-depends:
-        jsaddle-warp
+        websockets
+      , warp
+  ghcjs-options:
+    -dedupe
+  cpp-options:
+    -DGHCJS_BROWSER
+  hs-source-dirs:
+    src/frontend
+  build-depends:
+      base < 5
+    , aeson
+    , containers
+    , miso
+    , either
+    , transformers
+    , bytestring
+    , servant-client-core
+    , http-types
+    , hello-spa
+    , servant-jsaddle
+    , base64-bytestring
+    , base16-bytestring
+    , text
+    , uri-bytestring
+    , network-uri
+    , servant
+    , ghcjs-dom
+    , jsaddle
+  default-language:
+    Haskell2010
+  if flag(ios)
+    cpp-options:
+      -DIOS
+    ghc-options:
+      -threaded
+    build-depends:
+      jsaddle-wkwebview
+  else
+    build-depends:
+      jsaddle-warp

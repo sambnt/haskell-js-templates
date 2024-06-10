@@ -50,7 +50,7 @@ authCookieToHeader cfg app r respond = do
                 <> "', is it in Base64 encoding? Error was: "
                 <> T.encodeUtf8 (T.pack err)
         Right jwt -> do
-          let newHdrs = insertHeader "Authorization" jwt hdrs
+          let newHdrs = insertHeader "Authorization" ("Bearer " <> jwt) hdrs
           app (mapRequestHeaders (const newHdrs) r) respond
 
 insertHeader ::

@@ -53,7 +53,7 @@ getKid jwt = do
     Right kid -> Right kid
 
 verifyJWT ::
-  (HasClaimsSet a, FromJSON a) =>
+  (HasClaimsSet a, Show a, FromJSON a) =>
   HTTP.Manager ->
   ConfigJWT ->
   JWKSCache ->

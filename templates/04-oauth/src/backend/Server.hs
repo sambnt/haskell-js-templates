@@ -58,7 +58,8 @@ appToHandler (App app) = (Handler . ExceptT . try . runIdentityT) app
 authHandler :: ConfigJWT -> Manager -> JWKSCache -> AuthHandler Request (Maybe ())
 authHandler cfgJwt manager jwksCache = AuthHandler $ \req -> do
   case getToken req of
-    Nothing    -> pure Nothing
+    Nothing    -> do
+      pure Nothing
     Just token -> liftIO $ do
       (result :: Maybe ClaimsSet) <- verifyJWT manager cfgJwt jwksCache token
       pure $ void result
