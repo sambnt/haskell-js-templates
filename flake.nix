@@ -15,7 +15,7 @@
       };
 
       auth-oauth = {
-        path = ./templates/03-auth-login;
+        path = ./templates/04-oauth;
         description = "Auth example with login using the new GHC Javascript backend.";
       };
     };
